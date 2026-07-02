@@ -8,12 +8,15 @@ import {
   Share,
   ThumbsDown,
   ThumbsUp,
+  Users,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
+import { useRouter } from "next/router";
 
 const VideoInfo = ({ video }: any) => {
+  const router = useRouter();
   const [likes, setlikes] = useState(video.Like || 0);
   const [dislikes, setDislikes] = useState(video.Dislike || 0);
   const [isLiked, setIsLiked] = useState(false);
@@ -21,6 +24,7 @@ const VideoInfo = ({ video }: any) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const { user } = useUser();
   const [isWatchLater, setIsWatchLater] = useState(false);
+
 
   // const user: any = {
   //   id: "1",
@@ -166,6 +170,18 @@ const VideoInfo = ({ video }: any) => {
           >
             <Clock className="w-5 h-5 mr-2" />
             {isWatchLater ? "Saved" : "Watch Later"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="bg-gray-100 rounded-full"
+            onClick={() => {
+              const randomRoomId = Math.random().toString(36).substring(2, 10);
+              router.push(`/watch-party/${randomRoomId}?videoId=${video._id}`);
+            }}
+          >
+            <Users className="w-5 h-5 mr-2" />
+            Watch Party
           </Button>
           <Button
             variant="ghost"
