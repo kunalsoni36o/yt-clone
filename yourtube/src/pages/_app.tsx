@@ -4,11 +4,15 @@ import { Toaster } from "@/components/ui/sonner";
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { UserProvider } from "../lib/AuthContext";
+import Head from "next/head";
+
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <UserProvider>
       <div className="min-h-screen bg-white text-black">
-        <title>Your-Tube Clone</title>
+        <Head>
+          <title>Your-Tube Clone</title>
+        </Head>
         <Header />
         <Toaster />
         <div className="flex">

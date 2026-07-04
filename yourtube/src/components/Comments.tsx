@@ -21,24 +21,7 @@ const Comments = ({ videoId }: any) => {
   const [editText, setEditText] = useState("");
   const { user } = useUser();
   const [loading, setLoading] = useState(true);
-  const fetchedComments = [
-    {
-      _id: "1",
-      videoid: videoId,
-      userid: "1",
-      commentbody: "Great video! Really enjoyed watching this.",
-      usercommented: "John Doe",
-      commentedon: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      _id: "2",
-      videoid: videoId,
-      userid: "2",
-      commentbody: "Thanks for sharing this amazing content!",
-      usercommented: "Jane Smith",
-      commentedon: new Date(Date.now() - 7200000).toISOString(),
-    },
-  ];
+
   useEffect(() => {
     loadComments();
   }, [videoId]);
@@ -53,9 +36,7 @@ const Comments = ({ videoId }: any) => {
       setLoading(false);
     }
   };
-  if (loading) {
-    return <div>Loading history...</div>;
-  }
+
   const handleSubmitComment = async () => {
     if (!user || !newComment.trim()) return;
 
@@ -94,9 +75,9 @@ const Comments = ({ videoId }: any) => {
   const handleUpdateComment = async () => {
     if (!editText.trim()) return;
     try {
-      const res = await axiosInstance.post(
+      const res = await axiosInstance.patch(
         `/comment/editcomment/${editingCommentId}`,
-        { commentbody: editText }
+        { commentbody: editText, userId: user?._id }
       );
       if (res.data) {
         setComments((prev) =>
@@ -114,14 +95,21 @@ const Comments = ({ videoId }: any) => {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await axiosInstance.delete(`/comment/deletecomment/${id}`);
+      const res = await axiosInstance.delete(`/comment/deletecomment/${id}`, {
+        data: { userId: user?._id },
+      });
       if (res.data.comment) {
         setComments((prev) => prev.filter((c) => c._id !== id));
       }
     } catch (error) {
-      console.log(error);
+      console.error("Error deleting comment:", error);
     }
   };
+
+  if (loading) {
+    return <div>Loading comments...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold">{comments.length} Comments</h2>

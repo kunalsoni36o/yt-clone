@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import {
@@ -14,6 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
 import { useRouter } from "next/router";
+import { toast } from "sonner";
 
 const VideoInfo = ({ video }: any) => {
   const router = useRouter();
@@ -24,6 +25,61 @@ const VideoInfo = ({ video }: any) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const { user } = useUser();
   const [isWatchLater, setIsWatchLater] = useState(false);
+
+  const handleDownload = async () => {
+    if (!user) {
+      toast.error("Please sign in to download videos.");
+      return;
+    }
+
+    try {
+      toast.loading("Processing download request...", { id: "download" });
+
+      // Step 1: Ask backend to authorise download and record it
+      const res = await axiosInstance.post(`/download/${video._id}`, {
+        userId: user._id,
+      });
+
+      const { userPlan, _id: downloadId } = res.data.download;
+      const remaining = res.data.remaining;
+
+      toast.success(
+        `Download approved! Plan: ${userPlan}. Remaining today: ${remaining}`,
+        { id: "download" }
+      );
+
+      // Step 2: Trigger browser file download
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+      const videoUrl = `${backendUrl}/${video.filepath}`;
+
+      let fileRes: Response;
+      try {
+        fileRes = await fetch(videoUrl);
+      } catch {
+        toast.error("Could not reach the server to fetch the video file.", { id: "download" });
+        return;
+      }
+
+      if (!fileRes.ok) {
+        toast.error(`Failed to download: server returned ${fileRes.status}`, { id: "download" });
+        return;
+      }
+
+      const blob = await fileRes.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = video.videotitle || "video.mp4";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.response?.data?.message || "Failed to process download.";
+      toast.error(msg, { id: "download" });
+    }
+  };
 
 
   // const user: any = {
@@ -39,22 +95,42 @@ const VideoInfo = ({ video }: any) => {
     setIsDisliked(false);
   }, [video]);
 
+  const viewRecorded = useRef(false);
+  const historyRecorded = useRef<string | null>(null);
+
   useEffect(() => {
-    const handleviews = async () => {
-      if (user) {
+    viewRecorded.current = false;
+    historyRecorded.current = null;
+  }, [video._id]);
+
+  useEffect(() => {
+    const recordViewAndHistory = async () => {
+      if (!video?._id) return;
+      
+      // 1. Record view count exactly once
+      if (!viewRecorded.current) {
+        viewRecorded.current = true;
         try {
-          return await axiosInstance.post(`/history/${video._id}`, {
-            userId: user?._id,
+          await axiosInstance.post(`/history/views/${video._id}`);
+        } catch (error) {
+          console.error("Error recording view:", error);
+        }
+      }
+
+      // 2. Record history if user is logged in
+      if (user?._id && historyRecorded.current !== video._id) {
+        historyRecorded.current = video._id;
+        try {
+          await axiosInstance.post(`/history/${video._id}`, {
+            userId: user._id,
           });
         } catch (error) {
-          return console.log(error);
+          console.error("Error saving to history:", error);
         }
-      } else {
-        return await axiosInstance.post(`/history/views/${video?._id}`);
       }
     };
-    handleviews();
-  }, [user]);
+    recordViewAndHistory();
+  }, [video._id, user?._id]);
   const handleLike = async () => {
     if (!user) return;
     try {
@@ -62,29 +138,30 @@ const VideoInfo = ({ video }: any) => {
         userId: user?._id,
       });
       if (res.data.liked) {
-        if (isLiked) {
-          setlikes((prev: any) => prev - 1);
-          setIsLiked(false);
-        } else {
-          setlikes((prev: any) => prev + 1);
-          setIsLiked(true);
-          if (isDisliked) {
-            setDislikes((prev: any) => prev - 1);
-            setIsDisliked(false);
-          }
+        setlikes((prev: any) => prev + 1);
+        setIsLiked(true);
+        if (isDisliked) {
+          setDislikes((prev: any) => prev - 1);
+          setIsDisliked(false);
         }
+      } else {
+        setlikes((prev: any) => prev - 1);
+        setIsLiked(false);
       }
     } catch (error) {
       console.log(error);
     }
   };
   const handleWatchLater = async () => {
+    if (!user) {
+      return; // BUG-019: Add guest guard
+    }
     try {
       const res = await axiosInstance.post(`/watch/${video._id}`, {
         userId: user?._id,
       });
       if (res.data.watchlater) {
-        setIsWatchLater(!isWatchLater);
+        setIsWatchLater(true);
       } else {
         setIsWatchLater(false);
       }
@@ -95,21 +172,22 @@ const VideoInfo = ({ video }: any) => {
   const handleDislike = async () => {
     if (!user) return;
     try {
-      const res = await axiosInstance.post(`/like/${video._id}`, {
-        userId: user?._id,
-      });
-      if (!res.data.liked) {
-        if (isDisliked) {
-          setDislikes((prev: any) => prev - 1);
-          setIsDisliked(false);
-        } else {
-          setDislikes((prev: any) => prev + 1);
-          setIsDisliked(true);
-          if (isLiked) {
-            setlikes((prev: any) => prev - 1);
-            setIsLiked(false);
-          }
+      // If liked, click dislike to undo the like first
+      if (isLiked) {
+        const res = await axiosInstance.post(`/like/${video._id}`, {
+          userId: user?._id,
+        });
+        if (!res.data.liked) {
+          setlikes((prev: any) => prev - 1);
+          setIsLiked(false);
         }
+      }
+      if (isDisliked) {
+        setDislikes((prev: any) => prev - 1);
+        setIsDisliked(false);
+      } else {
+        setDislikes((prev: any) => prev + 1);
+        setIsDisliked(true);
       }
     } catch (error) {
       console.log(error);
@@ -126,7 +204,9 @@ const VideoInfo = ({ video }: any) => {
           </Avatar>
           <div>
             <h3 className="font-medium">{video.videochanel}</h3>
-            <p className="text-sm text-gray-600">1.2M subscribers</p>
+            <p className="text-sm text-gray-600">
+              Subscriber details unavailable
+            </p>
           </div>
           <Button className="ml-4">Subscribe</Button>
         </div>
@@ -176,8 +256,10 @@ const VideoInfo = ({ video }: any) => {
             size="sm"
             className="bg-gray-100 rounded-full"
             onClick={() => {
-              const randomRoomId = Math.random().toString(36).substring(2, 10);
-              router.push(`/watch-party/${randomRoomId}?videoId=${video._id}`);
+              const secureRoomId = Array.from(window.crypto.getRandomValues(new Uint8Array(8)))
+                .map((b) => (b % 36).toString(36))
+                .join("");
+              router.push(`/watch-party/${secureRoomId}?videoId=${video._id}`);
             }}
           >
             <Users className="w-5 h-5 mr-2" />
@@ -195,6 +277,7 @@ const VideoInfo = ({ video }: any) => {
             variant="ghost"
             size="sm"
             className="bg-gray-100 rounded-full"
+            onClick={handleDownload}
           >
             <Download className="w-5 h-5 mr-2" />
             Download
@@ -215,8 +298,7 @@ const VideoInfo = ({ video }: any) => {
         </div>
         <div className={`text-sm ${showFullDescription ? "" : "line-clamp-3"}`}>
           <p>
-            Sample video description. This would contain the actual video
-            description from the database.
+            {video.description || "No description provided."}
           </p>
         </div>
         <Button

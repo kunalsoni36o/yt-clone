@@ -6,5 +6,5 @@ const routes = express.Router();
 routes.get("/:videoid", getallcomment);
 routes.post("/postcomment", postcomment);
 routes.delete("/deletecomment/:id", deletecomment);
-routes.post("/editcomment/:id", editcomment);
+routes.patch("/editcomment/:id", editcomment);
 export default routes;

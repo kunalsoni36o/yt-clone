@@ -11,11 +11,16 @@ const storage = multer.diskStorage({
     );
   },
 });
+import path from "path";
+
 const filefilter = (req, file, cb) => {
-  if (file.mimetype === "video/mp4") {
+  const allowedExtensions = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
+  const ext = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedExtensions.includes(ext) && file.mimetype.startsWith("video/")) {
     cb(null, true);
   } else {
-    cb(null, false);
+    cb(new Error("Only video files (" + allowedExtensions.join(", ") + ") are allowed!"), false);
   }
 };
 const upload = multer({ storage: storage, fileFilter: filefilter });

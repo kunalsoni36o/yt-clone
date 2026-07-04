@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
 import { MoreVertical, X, Clock, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,8 @@ export default function WatchLaterContent() {
   useEffect(() => {
     if (user) {
       loadWatchLater();
+    } else {
+      setLoading(false);
     }
   }, [user]);
 
@@ -43,12 +44,14 @@ export default function WatchLaterContent() {
   if (loading) {
     return <div>Loading watch later...</div>;
   }
-  const handleRemoveFromWatchLater = async (watchLaterId: string) => {
+  const handleRemoveFromWatchLater = async (watchLaterId: string, videoId: string) => {
     try {
-      console.log("Removing from history:", watchLaterId);
+      await axiosInstance.post(`/watch/${videoId}`, {
+        userId: user?._id,
+      });
       setWatchLater(watchLater.filter((item) => item._id !== watchLaterId));
     } catch (error) {
-      console.error("Error removing from history:", error);
+      console.error("Error removing from watch later:", error);
     }
   };
 
@@ -75,7 +78,7 @@ export default function WatchLaterContent() {
       </div>
     );
   }
-  const videos = "/video/vdo.mp4";
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -92,7 +95,7 @@ export default function WatchLaterContent() {
             <Link href={`/watch/${item.videoid._id}`} className="flex-shrink-0">
               <div className="relative w-40 aspect-video bg-gray-100 rounded overflow-hidden">
                 <video
-                  src={`${process.env.BACKEND_URL}/${item.videoid?.filepath}`}
+                  src={`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${item.videoid?.filepath}`}
                   className="object-cover group-hover:scale-105 transition-transform duration-200"
                 />
               </div>
@@ -128,7 +131,7 @@ export default function WatchLaterContent() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => handleRemoveFromWatchLater(item._id)}
+                  onClick={() => handleRemoveFromWatchLater(item._id, item.videoid._id)}
                 >
                   <X className="w-4 h-4 mr-2" />
                   Remove from Watch later

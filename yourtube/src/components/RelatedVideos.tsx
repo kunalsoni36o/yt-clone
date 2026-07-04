@@ -11,8 +11,8 @@ interface RelatedVideosProps {
     createdAt: string;
   }>;
 }
-const vid = "/video/vdo.mp4";
 export default function RelatedVideos({ videos }: RelatedVideosProps) {
+  if (!videos || !Array.isArray(videos)) return null;
   return (
     <div className="space-y-2">
       {videos.map((video) => (
@@ -23,7 +23,7 @@ export default function RelatedVideos({ videos }: RelatedVideosProps) {
         >
           <div className="relative w-40 aspect-video bg-gray-100 rounded overflow-hidden flex-shrink-0">
             <video
-              src={vid}
+              src={`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${(video as any).filepath}`}
               className="object-cover group-hover:scale-105 transition-transform duration-200"
             />
           </div>

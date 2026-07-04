@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
 import { MoreVertical, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ export default function HistoryContent() {
     if (user) {
       loadHistory();
     } else {
-      setLoading(true);
+      setLoading(false);
     }
   }, [user]);
 
@@ -46,8 +45,9 @@ export default function HistoryContent() {
 
   const handleRemoveFromHistory = async (historyId: string) => {
     try {
-      console.log("Removing from history:", historyId);
-
+      await axiosInstance.delete(`/history/${historyId}`, {
+        data: { userId: user?._id },
+      });
       setHistory(history.filter((item) => item._id !== historyId));
     } catch (error) {
       console.error("Error removing from history:", error);
@@ -77,7 +77,7 @@ export default function HistoryContent() {
       </div>
     );
   }
-  const videos = "/video/vdo.mp4";
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -90,7 +90,7 @@ export default function HistoryContent() {
             <Link href={`/watch/${item.videoid._id}`} className="flex-shrink-0">
               <div className="relative w-40 aspect-video bg-gray-100 rounded overflow-hidden">
                 <video
-                  src={`${process.env.BACKEND_URL}/${item.videoid?.filepath}`}
+                  src={`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${item.videoid?.filepath}`}
                   className="object-cover group-hover:scale-105 transition-transform duration-200"
                 />
               </div>

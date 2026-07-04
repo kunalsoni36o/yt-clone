@@ -49,21 +49,29 @@ const Channeldialogue = ({ isopen, onclose, channeldata, mode }: any) => {
   };
   const handlesubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const payload = {
-      channelname: formData.name,
-      description: formData.description,
-    };
-    const response = await axiosInstance.patch(
-      `/user/update/${user._id}`,
-      payload
-    );
-    login(response?.data);
-    router.push(`/channel/${user?._id}`);
-    setFormData({
-      name: "",
-      description: "",
-    });
-    onclose();
+    if (!user?._id) return;
+    setisSubmitting(true);
+    try {
+      const payload = {
+        channelname: formData.name,
+        description: formData.description,
+      };
+      const response = await axiosInstance.patch(
+        `/user/update/${user._id}`,
+        payload
+      );
+      login(response?.data);
+      router.push(`/channel/${user?._id}`);
+      setFormData({
+        name: "",
+        description: "",
+      });
+      onclose();
+    } catch (error) {
+      console.error("Error updating channel:", error);
+    } finally {
+      setisSubmitting(false);
+    }
   };
   return (
     <Dialog open={isopen} onOpenChange={onclose}>

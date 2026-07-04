@@ -47,6 +47,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     if (isUploading) {
       toast.error("Your video upload has been cancelled");
     }
+    resetForm();
   };
   const handleUpload = async () => {
     if (!videoFile || !videoTitle.trim()) {
@@ -58,7 +59,6 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     formdata.append("videotitle", videoTitle);
     formdata.append("videochanel", channelName);
     formdata.append("uploader", channelId);
-    console.log(formdata)
     try {
       setIsUploading(true);
       setUploadProgress(0);
