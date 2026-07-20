@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useUser } from "@/lib/AuthContext";
@@ -361,7 +361,11 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
         poster={`/placeholder.svg?height=480&width=854`}
       >
         <source
-          src={`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${video?.filepath}`}
+          src={
+            video?.filepath?.startsWith("http")
+              ? video.filepath
+              : `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${video?.filepath}`
+          }
           type="video/mp4"
         />
         Your browser does not support the video tag.
