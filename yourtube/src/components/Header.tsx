@@ -1,5 +1,5 @@
-import { Bell, Menu, Mic, Search, User, VideoIcon } from "lucide-react";
-import React, { useState } from "react";
+import { Bell, Menu, Mic, Search, User, VideoIcon, Sun, Moon } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { Input } from "./ui/input";
@@ -14,15 +14,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import Channeldialogue from "./channeldialogue";
 import { useRouter } from "next/router";
 import { useUser } from "@/lib/AuthContext";
+import { useTheme } from "next-themes";
+import axiosInstance from "@/lib/axiosinstance";
 
 const Header = () => {
-  const { user, logout, handlegooglesignin } = useUser();
-  // const user: any = {
-  //   id: "1",
-  //   name: "John Doe",
-  //   email: "john@example.com",
-  //   image: "https://github.com/shadcn.png?height=32&width=32",
-  // };
+  const { user, logout, handlegooglesignin, updateThemeInState } = useUser();
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isdialogeopen, setisdialogeopen] = useState(false);
   const router = useRouter();
@@ -37,8 +40,22 @@ const Header = () => {
       handleSearch(e as any);
     }
   };
+
+  const toggleTheme = async () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    if (user && user._id) {
+      try {
+        const res = await axiosInstance.patch(`/user/theme/${user._id}`, { theme: nextTheme });
+        updateThemeInState(res.data.theme);
+      } catch (err) {
+        console.error("Failed to update theme in profile", err);
+      }
+    }
+  };
+
   return (
-    <header className="flex items-center justify-between px-4 py-2 bg-white border-b">
+    <header className="flex items-center justify-between px-4 py-2 bg-background border-b border-border text-foreground transition-colors duration-200">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon">
           <Menu className="w-6 h-6" />
@@ -78,6 +95,19 @@ const Header = () => {
         </Button>
       </form>
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="rounded-full"
+          aria-label="Toggle Theme"
+        >
+          {mounted && theme === "dark" ? (
+            <Sun className="w-5 h-5 text-yellow-500" />
+          ) : (
+            <Moon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          )}
+        </Button>
         {user ? (
           <>
             <Button variant="ghost" size="icon">

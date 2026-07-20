@@ -65,3 +65,37 @@ export const sendSubscriptionConfirmation = async ({
 
   return { sent: true };
 };
+
+export const sendOtpEmail = async ({ to, userName, otpCode }) => {
+  const from = process.env.EMAIL_FROM || process.env.SMTP_USER || "noreply@yourtube.local";
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; rounded: 8px;">
+      <h2 style="color: #dc2626; margin-bottom: 16px;">Security Verification Code</h2>
+      <p>Hi ${userName || "User"},</p>
+      <p>We detected a login attempt from a new device or location. To verify your identity, please enter the following verification code:</p>
+      <div style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #111827; text-align: center; margin: 24px 0; padding: 12px; background-color: #f3f4f6; border-radius: 6px;">
+        ${otpCode}
+      </div>
+      <p>This code is valid for 5 minutes. If you did not make this request, please secure your account immediately.</p>
+      <p style="color: #6b7280; font-size: 12px; margin-top: 24px;">This is an automated security email from YourTube.</p>
+    </div>
+  `;
+
+  const transporter = createTransporter();
+
+  if (!transporter) {
+    console.log("[Email] SMTP not configured — OTP logged to console:");
+    console.log({ to, otpCode });
+    return { sent: false, logged: true };
+  }
+
+  await transporter.sendMail({
+    from,
+    to,
+    subject: "YourTube Security Verification Code",
+    html,
+  });
+
+  return { sent: true };
+};
+
