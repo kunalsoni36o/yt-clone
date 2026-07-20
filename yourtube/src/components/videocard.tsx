@@ -15,6 +15,11 @@ export default function VideoCard({ video }: any) {
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1 rounded">
             {((video?.videotitle?.length || 10) % 10) + 2}:{String(((video?.views || 100) % 50) + 10).padStart(2, "0")}
           </div>
+          {video?.isPremium && (
+            <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded">
+              PREMIUM
+            </div>
+          )}
         </div>
         <div className="flex gap-3">
           <Avatar className="w-9 h-9 flex-shrink-0">

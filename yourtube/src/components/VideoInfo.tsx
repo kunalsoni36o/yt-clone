@@ -77,6 +77,16 @@ const VideoInfo = ({ video }: any) => {
     } catch (error: any) {
       console.error(error);
       const msg = error.response?.data?.message || "Failed to process download.";
+      if (error.response?.data?.premiumRequired) {
+        toast.error(msg, {
+          id: "download",
+          action: {
+            label: "Upgrade",
+            onClick: () => router.push("/plans"),
+          },
+        });
+        return;
+      }
       toast.error(msg, { id: "download" });
     }
   };

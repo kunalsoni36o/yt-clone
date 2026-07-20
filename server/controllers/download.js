@@ -3,12 +3,7 @@ import Download from "../Modals/download.js";
 import Video from "../Modals/video.js";
 import User from "../Modals/Auth.js";
 
-const PLAN_LIMITS = {
-  free: 1,
-  bronze: 5,
-  gold: 10,
-  unlimited: Infinity,
-};
+import { getDownloadLimit } from "../config/plans.js";
 
 export const requestDownload = async (req, res) => {
   const { videoId } = req.params;
@@ -29,8 +24,21 @@ export const requestDownload = async (req, res) => {
       return res.status(404).json({ message: "Video not found" });
     }
 
-    const plan = user.plan || "free";
-    const limit = PLAN_LIMITS[plan.toLowerCase()] !== undefined ? PLAN_LIMITS[plan.toLowerCase()] : 1;
+    let plan = user.plan || "free";
+    if (user.planExpiresAt && new Date(user.planExpiresAt) < new Date() && plan !== "free") {
+      await User.findByIdAndUpdate(userId, { $set: { plan: "free", planExpiresAt: null } });
+      plan = "free";
+    }
+
+    if (video.isPremium && plan === "free") {
+      return res.status(403).json({
+        message: "Premium video downloads require a paid plan. Upgrade to download this video.",
+        premiumRequired: true,
+        plan,
+      });
+    }
+
+    const limit = getDownloadLimit(plan);
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);

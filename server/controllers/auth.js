@@ -45,19 +45,25 @@ export const updateprofile = async (req, res) => {
 export const updateplan = async (req, res) => {
   const { id: _id } = req.params;
   const { plan } = req.body;
-  const ALLOWED_PLANS = ["free", "bronze", "gold", "unlimited"];
+  const ALLOWED_PLANS = ["free", "bronze", "silver", "gold"];
   if (!mongoose.Types.ObjectId.isValid(_id)) {
     return res.status(400).json({ message: "Invalid user ID..." });
   }
   if (!plan || !ALLOWED_PLANS.includes(plan.toLowerCase())) {
     return res.status(400).json({ message: `Invalid plan. Must be one of: ${ALLOWED_PLANS.join(", ")}` });
   }
+  if (plan.toLowerCase() !== "free") {
+    return res.status(403).json({
+      message: "Paid plans require payment. Use the subscription checkout flow.",
+    });
+  }
   try {
     const updatedata = await users.findByIdAndUpdate(
       _id,
       {
         $set: {
-          plan: plan,
+          plan: "free",
+          planExpiresAt: null,
         },
       },
       { new: true }

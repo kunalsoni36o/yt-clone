@@ -130,6 +130,9 @@ const Header = () => {
                 <DropdownMenuItem asChild>
                   <Link href="/plans">Upgrade Plans</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/subscriptions">Subscriptions</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>

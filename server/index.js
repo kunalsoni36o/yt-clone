@@ -12,6 +12,7 @@ import watchlaterroutes from "./routes/watchlater.js";
 import historyrroutes from "./routes/history.js";
 import commentroutes from "./routes/comment.js";
 import downloadroutes from "./routes/download.js";
+import subscriptionroutes from "./routes/subscription.js";
 import { initWatchParty } from "./socket/watchparty.js";
 
 dotenv.config();
@@ -39,6 +40,7 @@ app.use("/watch", watchlaterroutes);
 app.use("/history", historyrroutes);
 app.use("/comment", commentroutes);
 app.use("/download", downloadroutes);
+app.use("/subscription", subscriptionroutes);
 
 // Wrap express with an http.Server so socket.io can attach
 const httpServer = createServer(app);
