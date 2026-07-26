@@ -1,4 +1,5 @@
 import WatchParty from "../Modals/watchparty.js";
+import crypto from "crypto";
 
 const rooms = new Map();
 const MAX_PARTICIPANTS = 12;
@@ -23,6 +24,7 @@ export const initWatchParty = (io) => {
     socket.on("join-room", async ({ roomId, videoId, userId, userName } = {}) => {
       try {
         roomId = cleanText(roomId, 80);
+        videoId = cleanText(videoId, 100);
         if (!ROOM_ID_PATTERN.test(roomId)) return sendError(socket, "Invalid room ID.");
         if (socket.data.roomId) return sendError(socket, "You already joined a room.");
 
@@ -31,7 +33,7 @@ export const initWatchParty = (io) => {
 
         if (!room) {
           room = {
-            videoId: cleanText(storedRoom?.videoId || videoId, 100),
+            videoId: storedRoom?.videoId || videoId,
             host: socket.id,
             hostUserId: cleanText(storedRoom?.hostUserId || userId || "anonymous", 100),
             participants: new Map(),
@@ -110,7 +112,7 @@ export const initWatchParty = (io) => {
       socket.data.lastChatAt = now;
 
       const chatMessage = {
-        id: `${now}-${Math.random().toString(36).slice(2)}`,
+        id: crypto.randomUUID(),
         message,
         userName: participant.name,
         userId: participant.userId,
@@ -139,8 +141,15 @@ export const initWatchParty = (io) => {
       io.to(to).emit("webrtc-signal", { signal, from: socket.id });
     });
 
-    socket.on("leave-room", ({ roomId } = {}) => handleLeave(socket, roomId, io));
-    socket.on("disconnect", () => handleLeave(socket, socket.data.roomId, io));
+    socket.on("leave-room", ({ roomId } = {}) => {
+      socket.data.roomId = undefined;
+      handleLeave(socket, roomId, io);
+    });
+    socket.on("disconnect", () => {
+      if (socket.data.roomId) {
+        handleLeave(socket, socket.data.roomId, io);
+      }
+    });
   });
 };
 

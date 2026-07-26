@@ -12,6 +12,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
+  const [isPremium, setIsPremium] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handlefilechange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -36,6 +37,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
   const resetForm = () => {
     setVideoFile(null);
     setVideoTitle("");
+    setIsPremium(false);
     setIsUploading(false);
     setUploadProgress(0);
     setUploadComplete(false);
@@ -47,6 +49,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     if (isUploading) {
       toast.error("Your video upload has been cancelled");
     }
+    resetForm();
   };
   const handleUpload = async () => {
     if (!videoFile || !videoTitle.trim()) {
@@ -58,7 +61,7 @@ const VideoUploader = ({ channelId, channelName }: any) => {
     formdata.append("videotitle", videoTitle);
     formdata.append("videochanel", channelName);
     formdata.append("uploader", channelId);
-    console.log(formdata)
+    formdata.append("isPremium", String(isPremium));
     try {
       setIsUploading(true);
       setUploadProgress(0);
@@ -146,6 +149,16 @@ const VideoUploader = ({ channelId, channelName }: any) => {
                   className="mt-1"
                 />
               </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isPremium}
+                  onChange={(e) => setIsPremium(e.target.checked)}
+                  disabled={isUploading || uploadComplete}
+                  className="rounded"
+                />
+                Mark as premium video (requires paid plan to watch/download)
+              </label>
             </div>
 
             {isUploading && (

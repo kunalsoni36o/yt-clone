@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import { useUser } from "@/lib/AuthContext";
-import { getSocket } from "@/lib/socket";
+import { getSocket, disconnectSocket } from "@/lib/socket";
 import SyncedVideoPlayer from "./SyncedVideoPlayer";
 import VideoCallPanel from "./VideoCallPanel";
 import CallControls from "./CallControls";
@@ -198,10 +198,9 @@ export default function WatchPartyLayout({ roomId }: { roomId: string }) {
           setChatMessages(history || []);
           setIsHost(iAm);
           if (vid) {
-            axiosInstance.get("/video/getall").then((res) => {
-              const found = res.data?.find((v: any) => v._id === vid);
-              if (found && mounted) setVideoData(found);
-            });
+            axiosInstance.get(`/video/${vid}`).then((res) => {
+              if (res.data && mounted) setVideoData(res.data);
+            }).catch(err => console.error("Error loading watch party video metadata:", err));
           }
           // Create non-initiator peers for existing participants
           parts.forEach((p: Participant) => {
@@ -308,7 +307,7 @@ export default function WatchPartyLayout({ roomId }: { roomId: string }) {
         socket.off("chat-message");
         socket.off("webrtc-signal");
         socket.off("party-error");
-        socket.disconnect();
+        disconnectSocket();
       }
       peersRef.current.forEach((peer) => { try { peer.destroy(); } catch {} });
       peersRef.current.clear();

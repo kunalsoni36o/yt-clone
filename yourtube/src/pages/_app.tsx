@@ -3,19 +3,46 @@ import Sidebar from "@/components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
-import { UserProvider } from "../lib/AuthContext";
+import { UserProvider, useUser } from "../lib/AuthContext";
+import Head from "next/head";
+import { ThemeProvider, useTheme } from "next-themes";
+import { useEffect } from "react";
+import OtpModal from "@/components/OtpModal";
+
+function AppContent({ Component, pageProps }: { Component: any; pageProps: any }) {
+  const { user } = useUser();
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    if (user && user.theme && user.theme !== theme) {
+      setTheme(user.theme);
+    }
+  }, [user?.theme, theme, setTheme]);
+
+  return (
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
+      <Head>
+        <title>Your-Tube Clone</title>
+      </Head>
+      <Header />
+      <Toaster />
+      <OtpModal />
+      <div className="flex">
+        <Sidebar />
+        <Component {...pageProps} />
+      </div>
+    </div>
+  );
+}
+
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <UserProvider>
-      <div className="min-h-screen bg-white text-black">
-        <title>Your-Tube Clone</title>
-        <Header />
-        <Toaster />
-        <div className="flex">
-          <Sidebar />
-          <Component {...pageProps} />
-        </div>
-      </div>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <AppContent Component={Component} pageProps={pageProps} />
+      </ThemeProvider>
     </UserProvider>
   );
 }
+
+

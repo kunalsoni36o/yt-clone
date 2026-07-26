@@ -11,16 +11,19 @@ import likeroutes from "./routes/like.js";
 import watchlaterroutes from "./routes/watchlater.js";
 import historyrroutes from "./routes/history.js";
 import commentroutes from "./routes/comment.js";
+import downloadroutes from "./routes/download.js";
+import subscriptionroutes from "./routes/subscription.js";
 import { initWatchParty } from "./socket/watchparty.js";
 
 dotenv.config();
 const app = express();
-import path from "path";
-
-app.use(cors());
+const clientOrigin = process.env.CLIENT_URL || "http://localhost:3000";
+app.use(cors({
+  origin: clientOrigin,
+  credentials: true
+}));
 app.use(express.json({ limit: "30mb", extended: true }));
 app.use(express.urlencoded({ limit: "30mb", extended: true }));
-app.use("/uploads", express.static(path.join("uploads")));
 
 app.get("/", (req, res) => {
   res.send("You tube backend is working");
@@ -33,6 +36,8 @@ app.use("/like", likeroutes);
 app.use("/watch", watchlaterroutes);
 app.use("/history", historyrroutes);
 app.use("/comment", commentroutes);
+app.use("/download", downloadroutes);
+app.use("/subscription", subscriptionroutes);
 
 // Wrap express with an http.Server so socket.io can attach
 const httpServer = createServer(app);
@@ -40,8 +45,9 @@ const httpServer = createServer(app);
 // Attach socket.io
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
     methods: ["GET", "POST"],
+    credentials: true
   },
 });
 

@@ -3,11 +3,10 @@ import RelatedVideos from "@/components/RelatedVideos";
 import VideoInfo from "@/components/VideoInfo";
 import Videopplayer from "@/components/Videopplayer";
 import axiosInstance from "@/lib/axiosinstance";
-import { notFound } from "next/navigation";
 import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useState } from "react";
 
-const index = () => {
+const WatchPage = () => {
   const router = useRouter();
   const { id } = router.query;
   const [videos, setvideo] = useState<any>(null);
@@ -76,7 +75,7 @@ const index = () => {
             <Comments videoId={id} />
           </div>
           <div className="space-y-4">
-            <RelatedVideos videos={video} />
+            <RelatedVideos videos={video ? video.filter((v: any) => v._id !== id) : []} />
           </div>
         </div>
       </div>
@@ -84,4 +83,4 @@ const index = () => {
   );
 };
 
-export default index;
+export default WatchPage;

@@ -11,7 +11,7 @@ const historyschema = mongoose.Schema(
       ref: "videofiles",
       required: true,
     },
-    likedon: { type: Date, default: Date.now },
+    watchedOn: { type: Date, default: Date.now }, // BUG-007: renamed from likedon
   },
   {
     timestamps: true,

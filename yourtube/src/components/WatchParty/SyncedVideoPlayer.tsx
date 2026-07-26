@@ -31,19 +31,21 @@ export default function SyncedVideoPlayer({
     const v = videoRef.current;
     if (!v) return;
 
-    isSyncing.current = true;
-
     const applySync = async () => {
       // Only seek if drift is more than 1 second
       if (Math.abs(v.currentTime - videoSyncState.currentTime) > 1) {
+        isSyncing.current = true;
         v.currentTime = videoSyncState.currentTime;
       }
       if (videoSyncState.playing && v.paused) {
+        isSyncing.current = true;
         try { await v.play(); } catch {}
+        isSyncing.current = false;
       } else if (!videoSyncState.playing && !v.paused) {
+        isSyncing.current = true;
         v.pause();
+        isSyncing.current = false;
       }
-      setTimeout(() => { isSyncing.current = false; }, 350);
     };
 
     applySync();
@@ -64,7 +66,11 @@ export default function SyncedVideoPlayer({
         onPlay={() => emitSync(true)}
         onPause={() => emitSync(false)}
         onSeeked={() => {
-          if (isSyncing.current || !videoRef.current) return;
+          if (isSyncing.current) {
+            isSyncing.current = false;
+            return;
+          }
+          if (!videoRef.current) return;
           onSync({ playing: !videoRef.current.paused, currentTime: videoRef.current.currentTime });
         }}
       >
