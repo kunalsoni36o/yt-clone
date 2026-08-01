@@ -205,66 +205,66 @@ const VideoInfo = ({ video }: any) => {
   };
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">{video.videotitle}</h1>
+      <h1 className="text-xl font-bold text-foreground">{video.videotitle}</h1>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <Avatar className="w-10 h-10">
             <AvatarFallback>{video.videochanel[0]}</AvatarFallback>
           </Avatar>
           <div>
-            <h3 className="font-medium text-foreground">{video.videochanel}</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="font-semibold text-foreground text-sm">{video.videochanel}</h3>
+            <p className="text-xs text-muted-foreground">
               Subscriber details unavailable
             </p>
           </div>
-          <Button className="ml-4 bg-white text-black hover:bg-gray-200 font-semibold rounded-full px-4">Subscribe</Button>
+          <Button className="ml-2 bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 font-semibold rounded-full px-4 text-sm">Subscribe</Button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-full">
+          <div className="flex items-center bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-full font-medium">
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-l-full hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="rounded-l-full text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700"
               onClick={handleLike}
             >
               <ThumbsUp
-                className={`w-5 h-5 mr-2 ${
-                  isLiked ? "fill-red-600 text-red-600" : ""
+                className={`w-4 h-4 mr-1.5 ${
+                  isLiked ? "fill-red-600 text-red-600" : "text-zinc-700 dark:text-zinc-300"
                 }`}
               />
-              {likes.toLocaleString()}
+              <span className="font-semibold text-xs">{likes.toLocaleString()}</span>
             </Button>
-            <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-700" />
+            <div className="w-px h-5 bg-zinc-300 dark:bg-zinc-700" />
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-r-full hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="rounded-r-full text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700"
               onClick={handleDislike}
             >
               <ThumbsDown
-                className={`w-5 h-5 mr-2 ${
-                  isDisliked ? "fill-red-600 text-red-600" : ""
+                className={`w-4 h-4 mr-1.5 ${
+                  isDisliked ? "fill-red-600 text-red-600" : "text-zinc-700 dark:text-zinc-300"
                 }`}
               />
-              {dislikes.toLocaleString()}
+              <span className="font-semibold text-xs">{dislikes.toLocaleString()}</span>
             </Button>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className={`bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full ${
-              isWatchLater ? "text-primary" : ""
+            className={`bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-full font-medium ${
+              isWatchLater ? "text-red-600" : ""
             }`}
             onClick={handleWatchLater}
           >
-            <Clock className="w-5 h-5 mr-2" />
-            {isWatchLater ? "Saved" : "Watch Later"}
+            <Clock className="w-4 h-4 mr-1.5 text-zinc-700 dark:text-zinc-300" />
+            <span className="text-xs font-semibold">{isWatchLater ? "Saved" : "Watch Later"}</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+            className="bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-full font-medium"
             onClick={() => {
               const secureRoomId = Array.from(window.crypto.getRandomValues(new Uint8Array(8)))
                 .map((b) => (b % 36).toString(36))
@@ -272,32 +272,32 @@ const VideoInfo = ({ video }: any) => {
               router.push(`/watch-party/${secureRoomId}?videoId=${video._id}`);
             }}
           >
-            <Users className="w-5 h-5 mr-2" />
-            Watch Party
+            <Users className="w-4 h-4 mr-1.5 text-zinc-700 dark:text-zinc-300" />
+            <span className="text-xs font-semibold">Watch Party</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+            className="bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-full font-medium"
           >
-            <Share className="w-5 h-5 mr-2" />
-            Share
+            <Share className="w-4 h-4 mr-1.5 text-zinc-700 dark:text-zinc-300" />
+            <span className="text-xs font-semibold">Share</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+            className="bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-full font-medium"
             onClick={handleDownload}
           >
-            <Download className="w-5 h-5 mr-2" />
-            Download
+            <Download className="w-4 h-4 mr-1.5 text-zinc-700 dark:text-zinc-300" />
+            <span className="text-xs font-semibold">Download</span>
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full"
+            className="bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-700 rounded-full"
           >
-            <MoreHorizontal className="w-5 h-5" />
+            <MoreHorizontal className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
           </Button>
         </div>
       </div>
