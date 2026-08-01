@@ -102,18 +102,18 @@ export default function LikedVideosContent() {
 
             <div className="flex-1 min-w-0">
               <Link href={`/watch/${item.videoid._id}`}>
-                <h3 className="font-medium text-sm line-clamp-2 group-hover:text-blue-600 mb-1">
+                <h3 className="font-medium text-sm line-clamp-2 text-foreground group-hover:text-blue-600 mb-1">
                   {item.videoid.videotitle}
                 </h3>
               </Link>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {item.videoid.videochanel}
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {item.videoid.views.toLocaleString()} views •{" "}
                 {formatDistanceToNow(new Date(item.videoid.createdAt))} ago
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Liked {formatDistanceToNow(new Date(item.createdAt))} ago
               </p>
             </div>
