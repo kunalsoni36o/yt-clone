@@ -181,6 +181,16 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
     };
   }, [checkWatchLimit, nextVideo]);
 
+  const videoSrcUrl = video?.filepath?.startsWith("http")
+    ? video.filepath
+    : `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${video?.filepath}`;
+
+  useEffect(() => {
+    if (videoRef.current && videoSrcUrl) {
+      videoRef.current.load();
+    }
+  }, [videoSrcUrl]);
+
   // Auto-play next video countdown timer
   useEffect(() => {
     if (nextVideoCountdown === null) return;
@@ -473,18 +483,12 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
       {/* Video Element */}
       <video
         ref={videoRef}
+        src={videoSrcUrl}
         className="w-full h-full object-contain"
         poster={`/placeholder.svg?height=480&width=854`}
         playsInline
+        crossOrigin="anonymous"
       >
-        <source
-          src={
-            video?.filepath?.startsWith("http")
-              ? video.filepath
-              : `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${video?.filepath}`
-          }
-          type="video/mp4"
-        />
         Your browser does not support the video tag.
       </video>
 
