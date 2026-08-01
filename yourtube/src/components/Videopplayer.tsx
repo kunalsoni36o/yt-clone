@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import {
   Crown,
   Lock,
@@ -57,6 +58,7 @@ function formatTime(seconds: number): string {
 }
 
 export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,8 +80,10 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showNextVideo, setShowNextVideo] = useState(false);
+  const [nextVideoCountdown, setNextVideoCountdown] = useState<number | null>(null);
   const [seekFeedback, setSeekFeedback] = useState<{ side: "left" | "right"; amount: number } | null>(null);
-  const [doubleTapCount, setDoubleTapCount] = useState(0);
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverPosition, setHoverPosition] = useState<number>(0);
 
   // ───── Access control ─────
   useEffect(() => {
@@ -143,12 +147,21 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
         setShowNextVideo(true);
       }
     };
-    const onLoadedMetadata = () => { setDuration(el.duration); setIsLoading(false); };
+    const onLoadedMetadata = () => {
+      setDuration(el.duration);
+      setIsLoading(false);
+    };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onWaiting = () => setIsLoading(true);
     const onCanPlay = () => setIsLoading(false);
-    const onEnded = () => { setIsPlaying(false); if (nextVideo) setShowNextVideo(true); };
+    const onEnded = () => {
+      setIsPlaying(false);
+      if (nextVideo) {
+        setShowNextVideo(true);
+        setNextVideoCountdown(5);
+      }
+    };
 
     el.addEventListener("timeupdate", onTimeUpdate);
     el.addEventListener("loadedmetadata", onLoadedMetadata);
@@ -168,6 +181,21 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
     };
   }, [checkWatchLimit, nextVideo]);
 
+  // Auto-play next video countdown timer
+  useEffect(() => {
+    if (nextVideoCountdown === null) return;
+    if (nextVideoCountdown <= 0) {
+      if (nextVideo?._id) {
+        router.push(`/watch/${nextVideo._id}`);
+      }
+      return;
+    }
+    const timer = setTimeout(() => {
+      setNextVideoCountdown((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [nextVideoCountdown, nextVideo, router]);
+
   useEffect(() => {
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onFsChange);
@@ -180,21 +208,25 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
     controlsTimerRef.current = setTimeout(() => {
       if (videoRef.current && !videoRef.current.paused) setShowControls(false);
-    }, 3000);
+    }, 3500);
   }, []);
 
-  // ───── Actions ─────
+  // ───── Core Actions ─────
   const togglePlay = useCallback(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (el.paused) el.play(); else el.pause();
+    if (el.paused) {
+      el.play().catch(() => {});
+    } else {
+      el.pause();
+    }
     resetControlsTimer();
   }, [resetControlsTimer]);
 
   const seek = useCallback((seconds: number) => {
     const el = videoRef.current;
     if (!el) return;
-    el.currentTime = Math.max(0, Math.min(el.duration, el.currentTime + seconds));
+    el.currentTime = Math.max(0, Math.min(el.duration || 0, el.currentTime + seconds));
     resetControlsTimer();
   }, [resetControlsTimer]);
 
@@ -211,59 +243,126 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
   const toggleMute = useCallback(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (isMuted) { el.muted = false; el.volume = volume || 0.5; setIsMuted(false); }
-    else { el.muted = true; setIsMuted(true); }
+    if (isMuted) {
+      el.muted = false;
+      el.volume = volume || 0.5;
+      setIsMuted(false);
+    } else {
+      el.muted = true;
+      setIsMuted(true);
+    }
     resetControlsTimer();
   }, [isMuted, volume, resetControlsTimer]);
 
   const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) containerRef.current?.requestFullscreen();
-    else document.exitFullscreen();
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
     resetControlsTimer();
   }, [resetControlsTimer]);
 
+  // ───── Progress Bar Drag & Hover ─────
   const handleSeekBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const el = videoRef.current;
     if (!el || !el.duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    el.currentTime = ((e.clientX - rect.left) / rect.width) * el.duration;
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    el.currentTime = pos * el.duration;
     resetControlsTimer();
   }, [resetControlsTimer]);
 
-  // ───── Double-tap gesture ─────
+  const handleSeekBarMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = videoRef.current;
+    if (!el || !el.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setHoverPosition(pos * 100);
+    setHoverTime(pos * el.duration);
+  }, []);
+
+  const handleSeekBarMouseLeave = useCallback(() => {
+    setHoverTime(null);
+  }, []);
+
+  // ───── Double-tap / Mobile Gesture Controls ─────
   const showGestureFeedback = useCallback((side: "left" | "right", amount: number) => {
-    setDoubleTapCount((prev) => {
-      const next = prev + 1;
-      setSeekFeedback({ side, amount: next * Math.abs(amount) });
-      return next;
-    });
+    setSeekFeedback({ side, amount });
     if (doubleTapTimerRef.current) clearTimeout(doubleTapTimerRef.current);
     doubleTapTimerRef.current = setTimeout(() => {
       setSeekFeedback(null);
-      setDoubleTapCount(0);
-    }, 900);
+    }, 800);
   }, []);
 
-  const handleTap = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const processTap = useCallback((clientX: number, target: HTMLDivElement) => {
     const now = Date.now();
-    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-    const x = e.clientX - rect.left;
+    const rect = target.getBoundingClientRect();
+    const x = clientX - rect.left;
     const isLeft = x < rect.width / 2;
     const delta = now - lastTapRef.current.time;
 
     if (delta < 300) {
-      if (isLeft) { seek(-10); showGestureFeedback("left", 10); }
-      else { seek(10); showGestureFeedback("right", 10); }
+      if (isLeft) {
+        seek(-10);
+        showGestureFeedback("left", 10);
+      } else {
+        seek(10);
+        showGestureFeedback("right", 10);
+      }
       lastTapRef.current = { time: 0, x: 0 };
     } else {
       lastTapRef.current = { time: now, x };
       setTimeout(() => {
-        if (Date.now() - lastTapRef.current.time >= 290) togglePlay();
+        if (Date.now() - lastTapRef.current.time >= 290) {
+          togglePlay();
+        }
       }, 300);
     }
   }, [seek, showGestureFeedback, togglePlay]);
 
-  // ───── Derived ─────
+  const handleTap = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    processTap(e.clientX, e.currentTarget);
+  }, [processTap]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      const touch = e.changedTouches[0];
+      processTap(touch.clientX, e.currentTarget);
+    }
+  }, [processTap]);
+
+  // ───── Keyboard Shortcuts ─────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName.toLowerCase();
+      if (activeTag === "input" || activeTag === "textarea") return;
+
+      if (e.code === "Space" || e.code === "KeyK") {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === "ArrowLeft" || e.code === "KeyJ") {
+        e.preventDefault();
+        seek(-10);
+        showGestureFeedback("left", 10);
+      } else if (e.code === "ArrowRight" || e.code === "KeyL") {
+        e.preventDefault();
+        seek(10);
+        showGestureFeedback("right", 10);
+      } else if (e.code === "KeyM") {
+        e.preventDefault();
+        toggleMute();
+      } else if (e.code === "KeyF") {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [togglePlay, seek, toggleMute, toggleFullscreen, showGestureFeedback]);
+
+  // ───── Derived State ─────
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const blocked = access?.isPremiumVideo && !access?.hasPremiumAccess && !user;
   const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
@@ -271,7 +370,8 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video bg-black rounded-xl overflow-hidden select-none"
+      className="relative aspect-video bg-black rounded-xl overflow-hidden select-none group/player focus:outline-none"
+      tabIndex={0}
       onMouseMove={resetControlsTimer}
       onMouseLeave={() => {
         if (videoRef.current && !videoRef.current.paused) setShowControls(false);
@@ -279,86 +379,103 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
     >
       {/* Premium badge */}
       {video.isPremium && (
-        <div className="absolute top-3 left-3 z-10 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-md flex items-center gap-1 pointer-events-none">
-          <Crown className="w-3 h-3" /> Premium
+        <div className="absolute top-3 left-3 z-20 bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-md pointer-events-none">
+          <Crown className="w-3.5 h-3.5" /> Premium
         </div>
       )}
 
       {/* ── Overlays ── */}
       {blocked && (
-        <div className="absolute inset-0 z-20 bg-black/90 flex flex-col items-center justify-center text-white p-6 text-center">
+        <div className="absolute inset-0 z-30 bg-black/90 flex flex-col items-center justify-center text-white p-6 text-center">
           <Lock className="w-12 h-12 mb-4 text-amber-400" />
           <h3 className="text-xl font-bold mb-2">Premium video</h3>
-          <p className="text-gray-300 mb-4">Sign in and upgrade to watch this video.</p>
-          <Link href="/plans"><Button className="bg-red-600 hover:bg-red-700">View plans</Button></Link>
+          <p className="text-gray-300 mb-4 max-w-md">Sign in and upgrade your plan to watch this exclusive premium video.</p>
+          <Link href="/plans"><Button className="bg-red-600 hover:bg-red-700 font-semibold px-6 py-2">View plans</Button></Link>
         </div>
       )}
 
       {watchLimitReached && (
-        <div className="absolute inset-0 z-20 bg-black/90 flex flex-col items-center justify-center text-white p-6 text-center">
-          <Crown className="w-12 h-12 mb-4 text-amber-400" />
+        <div className="absolute inset-0 z-30 bg-black/90 flex flex-col items-center justify-center text-white p-6 text-center">
+          <Crown className="w-12 h-12 mb-4 text-amber-400 animate-bounce" />
           <h3 className="text-xl font-bold mb-2">Preview limit reached</h3>
-          <p className="text-gray-300 mb-4">Free users can watch 5 minutes of premium content. Upgrade for full access.</p>
-          <Link href="/plans"><Button className="bg-red-600 hover:bg-red-700">Upgrade now</Button></Link>
+          <p className="text-gray-300 mb-4 max-w-md">Free preview limit reached. Upgrade to Unlimited plan for full access.</p>
+          <Link href="/plans"><Button className="bg-red-600 hover:bg-red-700 font-semibold px-6 py-2">Upgrade now</Button></Link>
         </div>
       )}
 
       {showAd && (
-        <div className="absolute inset-0 z-30 bg-gray-900 flex flex-col items-center justify-center text-white">
-          <p className="text-sm uppercase tracking-widest text-gray-400 mb-2">Advertisement</p>
-          <p className="text-lg font-semibold">Upgrade for ad-free viewing</p>
-          <p className="text-sm text-gray-400 mt-2">Resuming in a few seconds...</p>
+        <div className="absolute inset-0 z-30 bg-gray-950 flex flex-col items-center justify-center text-white p-6">
+          <p className="text-xs uppercase tracking-widest text-amber-400 font-bold mb-2">Advertisement</p>
+          <p className="text-xl font-semibold">Upgrade for ad-free experience</p>
+          <p className="text-sm text-gray-400 mt-2">Resuming video in a few seconds...</p>
         </div>
       )}
 
-      {/* Loading spinner */}
+      {/* Loading spinner state */}
       {isLoading && !blocked && !watchLimitReached && !showAd && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-          <Loader2 className="w-14 h-14 text-white/80 animate-spin" />
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] pointer-events-none">
+          <Loader2 className="w-12 h-12 text-red-500 animate-spin mb-2" />
+          <span className="text-xs text-white/80 font-medium">Loading video...</span>
         </div>
       )}
 
-      {/* Next video card */}
+      {/* Next video card overlay */}
       {showNextVideo && nextVideo && !watchLimitReached && !blocked && (
-        <div className="absolute bottom-20 right-4 z-20 bg-black/80 backdrop-blur-sm border border-white/10 rounded-xl p-3 flex items-center gap-3 w-64 shadow-2xl">
+        <div className="absolute bottom-20 right-4 z-20 bg-black/90 border border-white/15 backdrop-blur-md rounded-xl p-3.5 flex items-center gap-3 w-72 shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-2">
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-gray-400 mb-0.5">Up next</p>
-            <p className="text-white text-sm font-semibold truncate">{nextVideo.videotitle}</p>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-red-500">Up Next</span>
+              {nextVideoCountdown !== null && (
+                <span className="text-[11px] font-mono text-gray-400">Playing in {nextVideoCountdown}s</span>
+              )}
+            </div>
+            <p className="text-white text-sm font-semibold truncate leading-snug">{nextVideo.videotitle}</p>
           </div>
-          <Link href={`/video/${nextVideo._id}`}>
-            <button className="shrink-0 bg-red-600 hover:bg-red-700 transition-colors text-white rounded-lg p-2">
+          <Link href={`/watch/${nextVideo._id}`}>
+            <button
+              onClick={() => setNextVideoCountdown(null)}
+              className="shrink-0 bg-red-600 hover:bg-red-700 transition-colors text-white font-medium rounded-lg p-2.5 flex items-center gap-1 text-xs shadow"
+              aria-label="Play next video"
+            >
               <SkipForward className="w-4 h-4" />
             </button>
           </Link>
         </div>
       )}
 
-      {/* Seek gesture feedback */}
+      {/* Seek gesture feedback animation */}
       {seekFeedback && (
         <div
-          className={`absolute top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-1 pointer-events-none transition-opacity ${
-            seekFeedback.side === "left" ? "left-10" : "right-10"
+          className={`absolute top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-1.5 pointer-events-none transition-all duration-300 animate-in zoom-in-75 ${
+            seekFeedback.side === "left" ? "left-12" : "right-12"
           }`}
         >
-          <div className="bg-black/55 rounded-full p-4">
-            {seekFeedback.side === "left"
-              ? <RotateCcw className="w-8 h-8 text-white" />
-              : <RotateCw className="w-8 h-8 text-white" />}
+          <div className="bg-black/70 backdrop-blur-md rounded-full p-4 border border-white/20 shadow-xl">
+            {seekFeedback.side === "left" ? (
+              <RotateCcw className="w-8 h-8 text-white animate-spin-reverse" />
+            ) : (
+              <RotateCw className="w-8 h-8 text-white" />
+            )}
           </div>
-          <span className="text-white text-sm font-bold drop-shadow">
-            {seekFeedback.side === "left" ? "-" : "+"}{seekFeedback.amount}s
+          <span className="text-white text-xs font-extrabold tracking-wide uppercase bg-black/60 px-2.5 py-0.5 rounded-full border border-white/10 shadow">
+            {seekFeedback.side === "left" ? "-10 sec" : "+10 sec"}
           </span>
         </div>
       )}
 
-      {/* Tap area for single/double tap */}
-      <div className="absolute inset-0 z-10" onClick={handleTap} />
+      {/* Tap & Touch gesture area */}
+      <div
+        className="absolute inset-0 z-10 cursor-pointer"
+        onClick={handleTap}
+        onTouchEnd={handleTouchEnd}
+      />
 
-      {/* Actual <video> */}
+      {/* Video Element */}
       <video
         ref={videoRef}
-        className="w-full h-full"
+        className="w-full h-full object-contain"
         poster={`/placeholder.svg?height=480&width=854`}
+        playsInline
       >
         <source
           src={
@@ -373,63 +490,90 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
 
       {/* ─── Custom Controls Bar ─── */}
       <div
-        className={`absolute bottom-0 left-0 right-0 z-20 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 100%)" }}
+        className={`absolute bottom-0 left-0 right-0 z-20 transition-opacity duration-300 ${
+          showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)" }}
       >
         {/* Progress / Seek bar */}
-        <div
-          className="group/bar mx-3 mb-3 mt-8 relative h-1.5 hover:h-2.5 transition-all duration-150 rounded-full bg-white/25 cursor-pointer"
-          onClick={handleSeekBarClick}
-        >
+        <div className="px-3 pt-4 pb-1">
           <div
-            className="absolute inset-y-0 left-0 bg-red-500 rounded-full pointer-events-none"
-            style={{ width: `${progress}%` }}
-          />
-          <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-red-500 shadow-lg pointer-events-none opacity-0 group-hover/bar:opacity-100 transition-opacity"
-            style={{ left: `${progress}%` }}
-          />
+            className="group/bar relative h-1.5 hover:h-2.5 transition-all duration-150 rounded-full bg-white/20 cursor-pointer flex items-center"
+            onClick={handleSeekBarClick}
+            onMouseMove={handleSeekBarMouseMove}
+            onMouseLeave={handleSeekBarMouseLeave}
+          >
+            {/* Hover time tooltip */}
+            {hoverTime !== null && (
+              <div
+                className="absolute -top-8 -translate-x-1/2 bg-black/90 border border-white/20 text-white text-[11px] font-mono px-2 py-0.5 rounded shadow pointer-events-none z-30"
+                style={{ left: `${hoverPosition}%` }}
+              >
+                {formatTime(hoverTime)}
+              </div>
+            )}
+
+            {/* Played progress */}
+            <div
+              className="absolute inset-y-0 left-0 bg-red-600 rounded-full pointer-events-none"
+              style={{ width: `${progress}%` }}
+            />
+            {/* Thumb */}
+            <div
+              className="absolute w-3.5 h-3.5 rounded-full bg-red-600 shadow-md pointer-events-none opacity-0 group-hover/bar:opacity-100 transition-opacity -translate-x-1/2"
+              style={{ left: `${progress}%` }}
+            />
+          </div>
         </div>
 
         {/* Controls row */}
-        <div className="flex items-center gap-2 px-3 pb-3">
+        <div className="flex items-center gap-2 px-3 pb-3 pt-1">
           {/* Play/Pause */}
           <button
             id="video-play-pause"
             onClick={togglePlay}
             aria-label={isPlaying ? "Pause" : "Play"}
-            className="text-white hover:text-red-400 transition-colors focus:outline-none p-1"
+            className="text-white/90 hover:text-white hover:scale-110 transition-all focus:outline-none p-1.5 rounded-lg hover:bg-white/10"
           >
-            {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 fill-current" />}
           </button>
 
           {/* Rewind 10s */}
           <button
             id="video-rewind"
-            onClick={() => seek(-10)}
+            onClick={() => {
+              seek(-10);
+              showGestureFeedback("left", 10);
+            }}
             aria-label="Rewind 10 seconds"
-            className="text-white hover:text-red-400 transition-colors focus:outline-none p-1"
+            title="Rewind 10s (Left Arrow)"
+            className="text-white/90 hover:text-white hover:scale-110 transition-all focus:outline-none p-1.5 rounded-lg hover:bg-white/10"
           >
-            <RotateCcw className="w-5 h-5" />
+            <RotateCcw className="w-4 h-4" />
           </button>
 
-          {/* Forward 10s */}
+          {/* Skip Forward 10s */}
           <button
             id="video-forward"
-            onClick={() => seek(10)}
+            onClick={() => {
+              seek(10);
+              showGestureFeedback("right", 10);
+            }}
             aria-label="Skip forward 10 seconds"
-            className="text-white hover:text-red-400 transition-colors focus:outline-none p-1"
+            title="Skip 10s (Right Arrow)"
+            className="text-white/90 hover:text-white hover:scale-110 transition-all focus:outline-none p-1.5 rounded-lg hover:bg-white/10"
           >
-            <RotateCw className="w-5 h-5" />
+            <RotateCw className="w-4 h-4" />
           </button>
 
           {/* Volume group */}
-          <div className="group/vol flex items-center gap-1">
+          <div className="group/vol flex items-center gap-1.5">
             <button
               id="video-mute"
               onClick={toggleMute}
               aria-label="Toggle mute"
-              className="text-white hover:text-red-400 transition-colors focus:outline-none p-1"
+              title="Mute (M)"
+              className="text-white/90 hover:text-white hover:scale-110 transition-all focus:outline-none p-1.5 rounded-lg hover:bg-white/10"
             >
               <VolumeIcon className="w-5 h-5" />
             </button>
@@ -440,22 +584,39 @@ export default function VideoPlayer({ video, nextVideo }: VideoPlayerProps) {
               step={0.02}
               value={isMuted ? 0 : volume}
               onChange={(e) => handleVolumeChange(Number(e.target.value))}
-              aria-label="Volume"
-              className="w-0 group-hover/vol:w-20 overflow-hidden transition-all duration-200 accent-red-500 cursor-pointer"
+              aria-label="Volume slider"
+              className="w-0 group-hover/vol:w-20 overflow-hidden transition-all duration-200 accent-red-600 cursor-pointer h-1.5 rounded-lg"
             />
           </div>
 
           {/* Time display */}
-          <span className="text-white/90 text-xs font-mono flex-1 select-none pl-1">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
+          <div className="text-white/90 text-xs font-mono select-none pl-2 flex-1 flex items-center gap-1">
+            <span>{formatTime(currentTime)}</span>
+            <span className="text-white/40">/</span>
+            <span className="text-white/60">{formatTime(duration)}</span>
+          </div>
+
+          {/* Next Video Quick Button */}
+          {nextVideo && (
+            <Link href={`/watch/${nextVideo._id}`}>
+              <button
+                id="video-next"
+                aria-label="Next video"
+                title="Next Video"
+                className="text-white/80 hover:text-white hover:scale-110 transition-all focus:outline-none p-1.5 rounded-lg hover:bg-white/10 hidden sm:block"
+              >
+                <SkipForward className="w-4 h-4" />
+              </button>
+            </Link>
+          )}
 
           {/* Fullscreen */}
           <button
             id="video-fullscreen"
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-            className="text-white hover:text-red-400 transition-colors focus:outline-none p-1"
+            title="Fullscreen (F)"
+            className="text-white/90 hover:text-white hover:scale-110 transition-all focus:outline-none p-1.5 rounded-lg hover:bg-white/10"
           >
             {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
