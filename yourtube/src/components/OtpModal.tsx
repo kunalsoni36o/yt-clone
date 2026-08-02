@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,18 +20,23 @@ export default function OtpModal() {
   const [resending, setResending] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Auto-fill code whenever devOtp changes or modal opens
+  useEffect(() => {
+    if (showOtp && devOtp) {
+      setCode(devOtp);
+    }
+  }, [showOtp, devOtp]);
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length !== 6) {
       setErrorMsg("Please enter a 6-digit code.");
       return;
     }
-
     setLoading(true);
     setErrorMsg("");
     const res = await verifyOtpCode(code);
     setLoading(false);
-
     if (!res.success) {
       setErrorMsg(res.message || "Invalid or expired OTP code.");
     } else {
@@ -44,13 +49,6 @@ export default function OtpModal() {
     setErrorMsg("");
     await resendOtpCode();
     setResending(false);
-  };
-
-  const handleAutofill = () => {
-    if (devOtp) {
-      setCode(devOtp);
-      setErrorMsg("");
-    }
   };
 
   const handleClose = () => {
@@ -66,28 +64,27 @@ export default function OtpModal() {
           </div>
           <DialogTitle className="text-xl font-bold">Security Verification</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground mt-1">
-            We detected a login attempt from a new device or location. 
-            A verification code has been sent to <strong className="text-foreground">{otpEmail}</strong>.
+            New device or location detected for{" "}
+            <strong className="text-foreground">{otpEmail}</strong>.{" "}
+            {devOtp
+              ? "Your code is shown below — it has been auto-filled."
+              : "Check your email for the verification code."}
           </DialogDescription>
         </DialogHeader>
 
+        {/* Code display box — always shown when code is available */}
         {devOtp && (
-          <div className="p-3 bg-muted border border-border rounded-lg text-center space-y-1.5">
-            <p className="text-xs text-muted-foreground">Your verification code is:</p>
-            <p className="font-mono text-2xl font-bold tracking-[0.4em] text-foreground">{devOtp}</p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAutofill}
-              className="h-7 text-xs mt-1"
-            >
-              Autofill Code
-            </Button>
+          <div className="p-4 bg-muted border border-border rounded-xl text-center space-y-1">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+              Your Verification Code
+            </p>
+            <p className="font-mono text-3xl font-bold tracking-[0.5em] text-foreground select-all">
+              {devOtp}
+            </p>
           </div>
         )}
 
-        <form onSubmit={handleVerify} className="space-y-4 mt-2">
+        <form onSubmit={handleVerify} className="space-y-4 mt-1">
           <div className="space-y-2 flex flex-col items-center">
             <Label htmlFor="otpCode" className="text-center font-semibold text-sm">
               Enter 6-Digit Code
@@ -120,7 +117,7 @@ export default function OtpModal() {
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${resending ? "animate-spin" : ""}`} />
-              {resending ? "Resending..." : "Didn't receive code? Resend"}
+              {resending ? "Generating new code..." : "Didn't receive code? Resend"}
             </Button>
           </div>
 
@@ -128,7 +125,11 @@ export default function OtpModal() {
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || code.length !== 6} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold">
+            <Button
+              type="submit"
+              disabled={loading || code.length !== 6}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
               {loading ? "Verifying..." : "Verify"}
             </Button>
           </DialogFooter>

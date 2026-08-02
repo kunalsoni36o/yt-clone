@@ -46,7 +46,9 @@ export const UserProvider = ({ children }) => {
 
   const [showOtp, setShowOtp] = useState(false);
   const [otpEmail, setOtpEmail] = useState("");
-  const [devOtp, setDevOtp] = useState("");
+  const [devOtp, setDevOtp] = useState(() => {
+    try { return sessionStorage.getItem("pendingOtp") || ""; } catch { return ""; }
+  });
   const [tempParams, setTempParams] = useState(null);
 
   const login = (userdata) => {
@@ -61,6 +63,7 @@ export const UserProvider = ({ children }) => {
     setTempParams(null);
     setOtpEmail("");
     setDevOtp("");
+    try { sessionStorage.removeItem("pendingOtp"); } catch {}
     try {
       await signOut(auth);
     } catch (error) {
@@ -91,6 +94,7 @@ export const UserProvider = ({ children }) => {
       setTempParams(null);
       setOtpEmail("");
       setDevOtp("");
+      try { sessionStorage.removeItem("pendingOtp"); } catch {}
       toast.success("Security verification successful!");
       return { success: true };
     } catch (err) {
@@ -107,7 +111,8 @@ export const UserProvider = ({ children }) => {
       const newCode = response.data.otpCode;
       if (newCode) {
         setDevOtp(newCode);
-        toast.info(`New Security Code: ${newCode}`, { duration: 15000 });
+        try { sessionStorage.setItem("pendingOtp", newCode); } catch {}
+        toast.info(`New Security Code: ${newCode}`, { duration: 30000 });
       } else {
         toast.success(response.data.message || "A new verification code has been sent!");
       }
@@ -164,7 +169,8 @@ export const UserProvider = ({ children }) => {
             // OTP code always returned in response for display
             if (response.data.otpCode) {
               setDevOtp(response.data.otpCode);
-              toast.info(`Your Security Code: ${response.data.otpCode}`, { duration: 15000 });
+              try { sessionStorage.setItem("pendingOtp", response.data.otpCode); } catch {}
+              toast.info(`Your Security Code: ${response.data.otpCode}`, { duration: 30000 });
             }
             setUser({ ...firebaseProfile, isPendingOtp: true });
           } else {
