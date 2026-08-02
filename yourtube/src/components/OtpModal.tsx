@@ -11,7 +11,7 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useUser } from "@/lib/AuthContext";
-import { ShieldCheck, RefreshCw, KeyRound } from "lucide-react";
+import { ShieldCheck, RefreshCw } from "lucide-react";
 
 export default function OtpModal() {
   const { showOtp, otpEmail, devOtp, verifyOtpCode, resendOtpCode, logout } = useUser();
@@ -72,22 +72,17 @@ export default function OtpModal() {
         </DialogHeader>
 
         {devOtp && (
-          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-center text-xs space-y-1.5">
-            <div className="flex items-center justify-center gap-1.5 font-semibold text-amber-600 dark:text-amber-400">
-              <KeyRound className="w-4 h-4" />
-              <span>Development Code Notice (SMTP unconfigured)</span>
-            </div>
-            <p className="text-muted-foreground">
-              Verification Code: <strong className="font-mono text-sm tracking-widest text-foreground">{devOtp}</strong>
-            </p>
+          <div className="p-3 bg-muted border border-border rounded-lg text-center space-y-1.5">
+            <p className="text-xs text-muted-foreground">Your verification code is:</p>
+            <p className="font-mono text-2xl font-bold tracking-[0.4em] text-foreground">{devOtp}</p>
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleAutofill}
-              className="mt-1 h-7 text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+              className="h-7 text-xs mt-1"
             >
-              Autofill Code ({devOtp})
+              Autofill Code
             </Button>
           </div>
         )}

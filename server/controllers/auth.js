@@ -58,16 +58,18 @@ export const login = async (req, res) => {
       user.tempOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
       await user.save();
 
-      // Send verification email
-      const mailResult = await sendOtpEmail({ to: email, userName: user.name, otpCode });
+      // Try to send email but never block — OTP is always returned in response
+      try {
+        await sendOtpEmail({ to: email, userName: user.name, otpCode });
+      } catch (_) {
+        // Email failed silently — user sees the code on screen
+      }
 
       return res.status(200).json({
         otpRequired: true,
         email: email,
-        devOtp: mailResult?.sent ? undefined : otpCode,
-        message: mailResult?.sent
-          ? "Security verification required. A code has been sent to your email."
-          : `Security verification required. (SMTP unconfigured - Dev Code: ${otpCode})`,
+        otpCode,
+        message: "Security verification required.",
       });
     }
 
@@ -113,13 +115,14 @@ export const resendOtp = async (req, res) => {
     user.tempOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
     await user.save();
 
-    const mailResult = await sendOtpEmail({ to: email, userName: user.name, otpCode });
+    // Try email silently — OTP always returned in response
+    try {
+      await sendOtpEmail({ to: email, userName: user.name, otpCode });
+    } catch (_) {}
 
     return res.status(200).json({
-      message: mailResult?.sent
-        ? "A new verification code has been sent to your email."
-        : `A new code was generated. (SMTP unconfigured - Dev Code: ${otpCode})`,
-      devOtp: mailResult?.sent ? undefined : otpCode,
+      message: "A new verification code has been generated.",
+      otpCode,
     });
   } catch (error) {
     console.error("Resend OTP error:", error);

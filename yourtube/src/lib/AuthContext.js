@@ -104,9 +104,10 @@ export const UserProvider = ({ children }) => {
     if (!otpEmail) return { success: false };
     try {
       const response = await axiosInstance.post("/user/resend-otp", { email: otpEmail });
-      if (response.data.devOtp) {
-        setDevOtp(response.data.devOtp);
-        toast.info(`New Security Code (Dev Mode): ${response.data.devOtp}`, { duration: 10000 });
+      const newCode = response.data.otpCode;
+      if (newCode) {
+        setDevOtp(newCode);
+        toast.info(`New Security Code: ${newCode}`, { duration: 15000 });
       } else {
         toast.success(response.data.message || "A new verification code has been sent!");
       }
@@ -160,9 +161,10 @@ export const UserProvider = ({ children }) => {
             setOtpEmail(firebaseProfile.email);
             setTempParams(params);
             setShowOtp(true);
-            if (response.data.devOtp) {
-              setDevOtp(response.data.devOtp);
-              toast.info(`Security Verification Code (Dev Mode): ${response.data.devOtp}`, { duration: 10000 });
+            // OTP code always returned in response for display
+            if (response.data.otpCode) {
+              setDevOtp(response.data.otpCode);
+              toast.info(`Your Security Code: ${response.data.otpCode}`, { duration: 15000 });
             }
             setUser({ ...firebaseProfile, isPendingOtp: true });
           } else {
