@@ -59,12 +59,15 @@ export const login = async (req, res) => {
       await user.save();
 
       // Send verification email
-      await sendOtpEmail({ to: email, userName: user.name, otpCode });
+      const mailResult = await sendOtpEmail({ to: email, userName: user.name, otpCode });
 
       return res.status(200).json({
         otpRequired: true,
         email: email,
-        message: "Security verification required. A code has been sent to your email."
+        devOtp: mailResult?.sent ? undefined : otpCode,
+        message: mailResult?.sent
+          ? "Security verification required. A code has been sent to your email."
+          : `Security verification required. (SMTP unconfigured - Dev Code: ${otpCode})`,
       });
     }
 
@@ -89,6 +92,37 @@ export const login = async (req, res) => {
 
   } catch (error) {
     console.error("Login error:", error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const resendOtp = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    const user = await users.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.tempOtp = otpCode;
+    user.tempOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    await user.save();
+
+    const mailResult = await sendOtpEmail({ to: email, userName: user.name, otpCode });
+
+    return res.status(200).json({
+      message: mailResult?.sent
+        ? "A new verification code has been sent to your email."
+        : `A new code was generated. (SMTP unconfigured - Dev Code: ${otpCode})`,
+      devOtp: mailResult?.sent ? undefined : otpCode,
+    });
+  } catch (error) {
+    console.error("Resend OTP error:", error);
     return res.status(500).json({ message: "Something went wrong" });
   }
 };
@@ -221,4 +255,3 @@ export const updateTheme = async (req, res) => {
     return res.status(500).json({ message: "Something went wrong" });
   }
 };
-

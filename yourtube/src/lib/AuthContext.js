@@ -46,6 +46,7 @@ export const UserProvider = ({ children }) => {
 
   const [showOtp, setShowOtp] = useState(false);
   const [otpEmail, setOtpEmail] = useState("");
+  const [devOtp, setDevOtp] = useState("");
   const [tempParams, setTempParams] = useState(null);
 
   const login = (userdata) => {
@@ -59,6 +60,7 @@ export const UserProvider = ({ children }) => {
     setShowOtp(false);
     setTempParams(null);
     setOtpEmail("");
+    setDevOtp("");
     try {
       await signOut(auth);
     } catch (error) {
@@ -88,12 +90,31 @@ export const UserProvider = ({ children }) => {
       setShowOtp(false);
       setTempParams(null);
       setOtpEmail("");
+      setDevOtp("");
       toast.success("Security verification successful!");
       return { success: true };
     } catch (err) {
       console.error("OTP verification error:", err);
       const msg = err.response?.data?.message || "Verification code invalid or expired";
       return { success: false, message: msg };
+    }
+  };
+
+  const resendOtpCode = async () => {
+    if (!otpEmail) return { success: false };
+    try {
+      const response = await axiosInstance.post("/user/resend-otp", { email: otpEmail });
+      if (response.data.devOtp) {
+        setDevOtp(response.data.devOtp);
+        toast.info(`New Security Code (Dev Mode): ${response.data.devOtp}`, { duration: 10000 });
+      } else {
+        toast.success(response.data.message || "A new verification code has been sent!");
+      }
+      return { success: true };
+    } catch (err) {
+      console.error("Resend OTP error:", err);
+      toast.error(err.response?.data?.message || "Failed to resend verification code");
+      return { success: false };
     }
   };
 
@@ -139,6 +160,10 @@ export const UserProvider = ({ children }) => {
             setOtpEmail(firebaseProfile.email);
             setTempParams(params);
             setShowOtp(true);
+            if (response.data.devOtp) {
+              setDevOtp(response.data.devOtp);
+              toast.info(`Security Verification Code (Dev Mode): ${response.data.devOtp}`, { duration: 10000 });
+            }
             setUser({ ...firebaseProfile, isPendingOtp: true });
           } else {
             login(response.data.result);
@@ -167,7 +192,9 @@ export const UserProvider = ({ children }) => {
         showOtp,
         setShowOtp,
         verifyOtpCode,
+        resendOtpCode,
         otpEmail,
+        devOtp,
       }}
     >
       {children}
@@ -176,4 +203,3 @@ export const UserProvider = ({ children }) => {
 };
 
 export const useUser = () => useContext(UserContext);
-

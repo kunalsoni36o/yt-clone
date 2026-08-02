@@ -11,12 +11,13 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useUser } from "@/lib/AuthContext";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, RefreshCw, KeyRound } from "lucide-react";
 
 export default function OtpModal() {
-  const { showOtp, otpEmail, verifyOtpCode, logout } = useUser();
+  const { showOtp, otpEmail, devOtp, verifyOtpCode, resendOtpCode, logout } = useUser();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleVerify = async (e: React.FormEvent) => {
@@ -38,8 +39,21 @@ export default function OtpModal() {
     }
   };
 
+  const handleResend = async () => {
+    setResending(true);
+    setErrorMsg("");
+    await resendOtpCode();
+    setResending(false);
+  };
+
+  const handleAutofill = () => {
+    if (devOtp) {
+      setCode(devOtp);
+      setErrorMsg("");
+    }
+  };
+
   const handleClose = () => {
-    // Closing the OTP modal cancels the login process
     logout();
   };
 
@@ -50,16 +64,37 @@ export default function OtpModal() {
           <div className="bg-red-100 dark:bg-red-950/50 p-3 rounded-full mb-2">
             <ShieldCheck className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
-          <DialogTitle className="text-xl">Security Verification</DialogTitle>
-          <DialogDescription className="text-sm text-gray-500 dark:text-gray-400">
+          <DialogTitle className="text-xl font-bold">Security Verification</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground mt-1">
             We detected a login attempt from a new device or location. 
-            A verification code has been sent to <strong>{otpEmail}</strong>.
+            A verification code has been sent to <strong className="text-foreground">{otpEmail}</strong>.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleVerify} className="space-y-4">
+        {devOtp && (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-center text-xs space-y-1.5">
+            <div className="flex items-center justify-center gap-1.5 font-semibold text-amber-600 dark:text-amber-400">
+              <KeyRound className="w-4 h-4" />
+              <span>Development Code Notice (SMTP unconfigured)</span>
+            </div>
+            <p className="text-muted-foreground">
+              Verification Code: <strong className="font-mono text-sm tracking-widest text-foreground">{devOtp}</strong>
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAutofill}
+              className="mt-1 h-7 text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+            >
+              Autofill Code ({devOtp})
+            </Button>
+          </div>
+        )}
+
+        <form onSubmit={handleVerify} className="space-y-4 mt-2">
           <div className="space-y-2 flex flex-col items-center">
-            <Label htmlFor="otpCode" className="text-center font-semibold">
+            <Label htmlFor="otpCode" className="text-center font-semibold text-sm">
               Enter 6-Digit Code
             </Label>
             <Input
@@ -73,18 +108,32 @@ export default function OtpModal() {
                 if (errorMsg) setErrorMsg("");
               }}
               placeholder="000000"
-              className="text-center text-2xl tracking-[0.5em] font-bold h-12 max-w-[200px]"
+              className="text-center text-2xl tracking-[0.5em] font-mono font-bold h-12 max-w-[220px]"
             />
             {errorMsg && (
-              <p className="text-xs text-red-600 font-semibold mt-1">{errorMsg}</p>
+              <p className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">{errorMsg}</p>
             )}
           </div>
 
-          <DialogFooter className="flex gap-2 sm:gap-0 mt-4">
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={resending}
+              onClick={handleResend}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${resending ? "animate-spin" : ""}`} />
+              {resending ? "Resending..." : "Didn't receive code? Resend"}
+            </Button>
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:gap-2 mt-4">
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || code.length !== 6} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+            <Button type="submit" disabled={loading || code.length !== 6} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold">
               {loading ? "Verifying..." : "Verify"}
             </Button>
           </DialogFooter>
