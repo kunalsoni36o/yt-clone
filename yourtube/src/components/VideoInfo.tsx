@@ -40,17 +40,19 @@ const VideoInfo = ({ video }: any) => {
         userId: user._id,
       });
 
-      const { userPlan, _id: downloadId } = res.data.download;
+      const { userPlan } = res.data.download;
       const remaining = res.data.remaining;
 
       toast.success(
-        `Download approved! Plan: ${userPlan}. Remaining today: ${remaining}`,
+        `Download approved! Plan: ${userPlan.toUpperCase()}. Remaining today: ${remaining}`,
         { id: "download" }
       );
 
       // Step 2: Trigger browser file download
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-      const videoUrl = `${backendUrl}/${video.filepath}`;
+      const videoUrl = video.filepath?.startsWith("http")
+        ? video.filepath
+        : `${backendUrl}/${video.filepath}`;
 
       let fileRes: Response;
       try {
@@ -69,7 +71,7 @@ const VideoInfo = ({ video }: any) => {
       const objectUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objectUrl;
-      a.download = video.videotitle || "video.mp4";
+      a.download = `${video.videotitle || "video"}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -77,11 +79,11 @@ const VideoInfo = ({ video }: any) => {
     } catch (error: any) {
       console.error(error);
       const msg = error.response?.data?.message || "Failed to process download.";
-      if (error.response?.data?.premiumRequired) {
+      if (error.response?.data?.premiumRequired || error.response?.data?.limitReached) {
         toast.error(msg, {
           id: "download",
           action: {
-            label: "Upgrade",
+            label: "Upgrade Plan",
             onClick: () => router.push("/plans"),
           },
         });

@@ -15,6 +15,12 @@ import downloadroutes from "./routes/download.js";
 import subscriptionroutes from "./routes/subscription.js";
 import { initWatchParty } from "./socket/watchparty.js";
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
 const app = express();
 const clientOrigin = process.env.CLIENT_URL || "http://localhost:3000";
@@ -24,6 +30,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "30mb", extended: true }));
 app.use(express.urlencoded({ limit: "30mb", extended: true }));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/", (req, res) => {
   res.send("You tube backend is working");
