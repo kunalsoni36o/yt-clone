@@ -430,9 +430,9 @@ export default function WatchPartyLayout({ roomId }: { roomId: string }) {
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="w-full min-h-[calc(100vh-57px)] bg-gray-950 text-white flex flex-col flex-1" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80 backdrop-blur border-b border-gray-800 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80 backdrop-blur border-b border-gray-800 shrink-0 w-full">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -474,11 +474,11 @@ export default function WatchPartyLayout({ roomId }: { roomId: string }) {
       </div>
 
       {/* ── Main content ── */}
-      <div className="flex flex-1 overflow-hidden min-h-0">
+      <div className="flex flex-1 overflow-hidden min-h-0 w-full">
         {/* Left: video + controls + chat */}
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 w-full h-full">
           {/* Synced video player */}
-          <div className="flex-1 bg-black min-h-0">
+          <div className="flex-1 bg-black min-h-[350px] flex flex-col items-center justify-center w-full relative">
             {videoData ? (
               <SyncedVideoPlayer
                 video={videoData}
@@ -487,9 +487,9 @@ export default function WatchPartyLayout({ roomId }: { roomId: string }) {
                 onSync={handleVideoSync}
               />
             ) : (
-              <div className="flex flex-col items-center justify-center h-96 text-gray-600 gap-3">
+              <div className="flex flex-col items-center justify-center min-h-[350px] w-full text-gray-400 gap-3">
                 <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center text-3xl">🎬</div>
-                <p>{videoId ? "Loading video…" : "No video in this room"}</p>
+                <p className="text-sm font-medium">{videoId ? "Loading video…" : "No video in this room"}</p>
               </div>
             )}
           </div>
@@ -510,7 +510,7 @@ export default function WatchPartyLayout({ roomId }: { roomId: string }) {
           />
 
           {/* Chat */}
-          <div className="h-60 border-t border-gray-800 shrink-0">
+          <div className="h-60 border-t border-gray-800 shrink-0 w-full">
             <PartyChat
               messages={chatMessages}
               onSendMessage={handleSendMessage}
@@ -520,7 +520,7 @@ export default function WatchPartyLayout({ roomId }: { roomId: string }) {
         </div>
 
         {/* Right: participant cameras */}
-        <div className="w-72 shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden">
+        <div className="w-80 shrink-0 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden">
           <div className="px-4 py-2 border-b border-gray-800 text-sm font-medium text-gray-400 shrink-0">
             Participants · {participants.length}
           </div>
