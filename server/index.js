@@ -64,21 +64,23 @@ const PORT = process.env.PORT || 5000;
 const DBURL = process.env.DB_URL;
 
 const startServer = async () => {
-  if (!DBURL) {
-    throw new Error("DB_URL is missing. Add it to server/.env");
-  }
-
-  await mongoose.connect(DBURL, {
-    serverSelectionTimeoutMS: 10000,
-  });
-  console.log("MongoDB connected");
-
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
   });
+
+  if (!DBURL) {
+    console.error("DB_URL is missing. Please set DB_URL in environment variables.");
+    return;
+  }
+
+  try {
+    await mongoose.connect(DBURL, {
+      serverSelectionTimeoutMS: 10000,
+    });
+    console.log("MongoDB connected successfully");
+  } catch (error) {
+    console.error("MongoDB connection failed:", error.message);
+  }
 };
 
-startServer().catch((error) => {
-  console.error("Server startup failed:", error.message);
-  process.exit(1);
-});
+startServer();
