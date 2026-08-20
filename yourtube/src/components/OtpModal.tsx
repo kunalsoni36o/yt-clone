@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +11,21 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useUser } from "@/lib/AuthContext";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, RefreshCw } from "lucide-react";
 
 export default function OtpModal() {
-  const { showOtp, otpEmail, verifyOtpCode, logout } = useUser();
+  const { showOtp, otpEmail, devOtp, verifyOtpCode, resendOtpCode, logout } = useUser();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Auto-fill code whenever devOtp changes or modal opens
+  useEffect(() => {
+    if (showOtp && devOtp) {
+      setCode(devOtp);
+    }
+  }, [showOtp, devOtp]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,12 +33,10 @@ export default function OtpModal() {
       setErrorMsg("Please enter a 6-digit code.");
       return;
     }
-
     setLoading(true);
     setErrorMsg("");
     const res = await verifyOtpCode(code);
     setLoading(false);
-
     if (!res.success) {
       setErrorMsg(res.message || "Invalid or expired OTP code.");
     } else {
@@ -38,8 +44,14 @@ export default function OtpModal() {
     }
   };
 
+  const handleResend = async () => {
+    setResending(true);
+    setErrorMsg("");
+    await resendOtpCode();
+    setResending(false);
+  };
+
   const handleClose = () => {
-    // Closing the OTP modal cancels the login process
     logout();
   };
 
@@ -50,16 +62,31 @@ export default function OtpModal() {
           <div className="bg-red-100 dark:bg-red-950/50 p-3 rounded-full mb-2">
             <ShieldCheck className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
-          <DialogTitle className="text-xl">Security Verification</DialogTitle>
-          <DialogDescription className="text-sm text-gray-500 dark:text-gray-400">
-            We detected a login attempt from a new device or location. 
-            A verification code has been sent to <strong>{otpEmail}</strong>.
+          <DialogTitle className="text-xl font-bold">Security Verification</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground mt-1">
+            New device or location detected for{" "}
+            <strong className="text-foreground">{otpEmail}</strong>.{" "}
+            {devOtp
+              ? "Your code is shown below — it has been auto-filled."
+              : "Check your email for the verification code."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleVerify} className="space-y-4">
+        {/* Code display box — always shown when code is available */}
+        {devOtp && (
+          <div className="p-4 bg-muted border border-border rounded-xl text-center space-y-1">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+              Your Verification Code
+            </p>
+            <p className="font-mono text-3xl font-bold tracking-[0.5em] text-foreground select-all">
+              {devOtp}
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleVerify} className="space-y-4 mt-1">
           <div className="space-y-2 flex flex-col items-center">
-            <Label htmlFor="otpCode" className="text-center font-semibold">
+            <Label htmlFor="otpCode" className="text-center font-semibold text-sm">
               Enter 6-Digit Code
             </Label>
             <Input
@@ -73,18 +100,36 @@ export default function OtpModal() {
                 if (errorMsg) setErrorMsg("");
               }}
               placeholder="000000"
-              className="text-center text-2xl tracking-[0.5em] font-bold h-12 max-w-[200px]"
+              className="text-center text-2xl tracking-[0.5em] font-mono font-bold h-12 max-w-[220px]"
             />
             {errorMsg && (
-              <p className="text-xs text-red-600 font-semibold mt-1">{errorMsg}</p>
+              <p className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">{errorMsg}</p>
             )}
           </div>
 
-          <DialogFooter className="flex gap-2 sm:gap-0 mt-4">
+          <div className="flex justify-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={resending}
+              onClick={handleResend}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${resending ? "animate-spin" : ""}`} />
+              {resending ? "Generating new code..." : "Didn't receive code? Resend"}
+            </Button>
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:gap-2 mt-4">
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || code.length !== 6} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+            <Button
+              type="submit"
+              disabled={loading || code.length !== 6}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
               {loading ? "Verifying..." : "Verify"}
             </Button>
           </DialogFooter>

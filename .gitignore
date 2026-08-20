@@ -11,7 +11,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-downloads/
+# downloads/ (commented out to track src/pages/downloads)
 eggs/
 .eggs/
 

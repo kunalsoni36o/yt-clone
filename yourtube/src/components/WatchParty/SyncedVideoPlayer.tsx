@@ -75,7 +75,7 @@ export default function SyncedVideoPlayer({
         }}
       >
         <source
-          src={`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${video?.filepath}`}
+          src={video?.filepath?.startsWith("http") ? video.filepath : `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/${video?.filepath}`}
           type="video/mp4"
         />
         Your browser does not support the video tag.

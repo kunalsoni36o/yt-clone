@@ -20,16 +20,18 @@ function AppContent({ Component, pageProps }: { Component: any; pageProps: any }
   }, [user?.theme, theme, setTheme]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 flex flex-col">
       <Head>
         <title>Your-Tube Clone</title>
       </Head>
       <Header />
       <Toaster />
       <OtpModal />
-      <div className="flex">
+      <div className="flex flex-1 w-full min-h-[calc(100vh-57px)]">
         <Sidebar />
-        <Component {...pageProps} />
+        <main className="flex-1 w-full min-w-0">
+          <Component {...pageProps} />
+        </main>
       </div>
     </div>
   );
@@ -44,5 +46,3 @@ export default function App({ Component, pageProps }: AppProps) {
     </UserProvider>
   );
 }
-
-

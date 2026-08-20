@@ -43,6 +43,25 @@ export const requestDownload = async (req, res) => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
+    // Check if user already downloaded this specific video today
+    const existingDownloadToday = await Download.findOne({
+      userId,
+      videoId,
+      downloadDate: { $gte: startOfToday },
+    });
+
+    if (existingDownloadToday) {
+      const downloadsTodayCount = await Download.countDocuments({
+        userId,
+        downloadDate: { $gte: startOfToday },
+      });
+      return res.status(200).json({
+        message: "Already downloaded today (free re-download)",
+        download: existingDownloadToday,
+        remaining: limit === Infinity ? "Unlimited" : Math.max(0, limit - downloadsTodayCount),
+      });
+    }
+
     const downloadsToday = await Download.countDocuments({
       userId,
       downloadDate: { $gte: startOfToday },
@@ -72,7 +91,7 @@ export const requestDownload = async (req, res) => {
     return res.status(200).json({
       message: "Download approved",
       download: newDownload,
-      remaining: limit === Infinity ? "Unlimited" : limit - downloadsToday - 1,
+      remaining: limit === Infinity ? "Unlimited" : Math.max(0, limit - downloadsToday - 1),
     });
   } catch (error) {
     console.error("Error checking/creating download:", error);
@@ -92,6 +111,67 @@ export const getUserDownloads = async (req, res) => {
     return res.status(200).json(downloads);
   } catch (error) {
     console.error("Error retrieving user downloads:", error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const getDownloadSummary = async (req, res) => {
+  const { userId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid user ID" });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let plan = user.plan || "free";
+    if (user.planExpiresAt && new Date(user.planExpiresAt) < new Date() && plan !== "free") {
+      await User.findByIdAndUpdate(userId, { $set: { plan: "free", planExpiresAt: null } });
+      plan = "free";
+    }
+
+    const limit = getDownloadLimit(plan);
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const downloadsToday = await Download.countDocuments({
+      userId,
+      downloadDate: { $gte: startOfToday },
+    });
+
+    return res.status(200).json({
+      plan,
+      downloadLimit: limit === Infinity ? "Unlimited" : limit,
+      downloadsToday,
+      remainingToday: limit === Infinity ? "Unlimited" : Math.max(0, limit - downloadsToday),
+    });
+  } catch (error) {
+    console.error("Error fetching download summary:", error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const deleteDownload = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid download ID" });
+  }
+
+  try {
+    const deleted = await Download.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ message: "Download record not found" });
+    }
+
+    return res.status(200).json({ message: "Download record deleted successfully", id });
+  } catch (error) {
+    console.error("Error deleting download record:", error);
     return res.status(500).json({ message: "Something went wrong" });
   }
 };

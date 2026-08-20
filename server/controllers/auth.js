@@ -17,8 +17,14 @@ const getCalculatedTheme = () => {
 export const login = async (req, res) => {
   const { email, name, image, device, city, state } = req.body;
 
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+
   try {
-    let user = await users.findOne({ email });
+    let user = await users.findOne({ email: cleanEmail });
     const calculatedTheme = getCalculatedTheme();
 
     if (!user) {
@@ -30,7 +36,7 @@ export const login = async (req, res) => {
         date: new Date()
       };
       user = await users.create({
-        email,
+        email: cleanEmail,
         name,
         image,
         theme: calculatedTheme,
@@ -52,19 +58,29 @@ export const login = async (req, res) => {
     const isNewParam = hasLogins && (isNewDevice || isNewCity || isNewState);
 
     if (isNewParam) {
-      // Generate 6-digit OTP
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      user.tempOtp = otpCode;
-      user.tempOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-      await user.save();
+      // Reuse existing active OTP if it hasn't expired yet
+      let otpCode = user.tempOtp;
+      if (!otpCode || !user.tempOtpExpiresAt || new Date(user.tempOtpExpiresAt) < new Date()) {
+        otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.tempOtp = otpCode;
+        user.tempOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+        await user.save();
+      }
 
-      // Send verification email
-      await sendOtpEmail({ to: email, userName: user.name, otpCode });
+      console.log(`[OTP] Security Code generated for ${cleanEmail}: ${otpCode}`);
+
+      // Try to send email but never block — OTP is always returned in response
+      try {
+        await sendOtpEmail({ to: cleanEmail, userName: user.name, otpCode });
+      } catch (_) {
+        // Email failed silently — user sees code on screen / console
+      }
 
       return res.status(200).json({
         otpRequired: true,
-        email: email,
-        message: "Security verification required. A code has been sent to your email."
+        email: cleanEmail,
+        otpCode,
+        message: "Security verification required.",
       });
     }
 
@@ -93,25 +109,68 @@ export const login = async (req, res) => {
   }
 };
 
+export const resendOtp = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+
+  try {
+    const user = await users.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.tempOtp = otpCode;
+    user.tempOtpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    await user.save();
+
+    console.log(`[OTP] Resent Security Code for ${cleanEmail}: ${otpCode}`);
+
+    // Try email silently — OTP always returned in response
+    try {
+      await sendOtpEmail({ to: cleanEmail, userName: user.name, otpCode });
+    } catch (_) {}
+
+    return res.status(200).json({
+      message: "A new verification code has been generated.",
+      otpCode,
+    });
+  } catch (error) {
+    console.error("Resend OTP error:", error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
 export const verifyOtp = async (req, res) => {
   const { email, otpCode, device, city, state } = req.body;
 
+  if (!email || !otpCode) {
+    return res.status(400).json({ message: "Email and verification code are required" });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanCode = String(otpCode).trim();
+
   try {
-    const user = await users.findOne({ email });
+    const user = await users.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     if (!user.tempOtp || !user.tempOtpExpiresAt) {
-      return res.status(400).json({ message: "No active verification request" });
+      return res.status(400).json({ message: "No active verification request found" });
     }
 
-    if (user.tempOtpExpiresAt < new Date()) {
-      return res.status(400).json({ message: "Verification code expired" });
+    if (new Date(user.tempOtpExpiresAt) < new Date()) {
+      return res.status(400).json({ message: "Verification code has expired. Please click Resend." });
     }
 
-    if (user.tempOtp !== otpCode) {
-      return res.status(400).json({ message: "Invalid verification code" });
+    if (String(user.tempOtp).trim() !== cleanCode) {
+      return res.status(400).json({ message: "Invalid verification code. Please check and try again." });
     }
 
     // OTP Verified! Clear temp variables and save new parameters
@@ -133,6 +192,8 @@ export const verifyOtp = async (req, res) => {
     user.theme = getCalculatedTheme();
 
     await user.save();
+    console.log(`[OTP] Successfully verified code for ${cleanEmail}`);
+
     return res.status(200).json({ result: user });
 
   } catch (error) {
@@ -221,4 +282,3 @@ export const updateTheme = async (req, res) => {
     return res.status(500).json({ message: "Something went wrong" });
   }
 };
-

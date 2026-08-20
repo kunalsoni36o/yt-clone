@@ -85,7 +85,7 @@ const Header = () => {
           />
           <Button
             type="submit"
-            className="rounded-r-full px-6 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-l-0"
+            className="rounded-r-full px-6 bg-secondary hover:bg-secondary/80 text-foreground border border-l-0 border-border"
           >
             <Search className="w-5 h-5" />
           </Button>

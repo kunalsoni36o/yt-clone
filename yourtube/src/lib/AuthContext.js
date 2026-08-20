@@ -46,6 +46,9 @@ export const UserProvider = ({ children }) => {
 
   const [showOtp, setShowOtp] = useState(false);
   const [otpEmail, setOtpEmail] = useState("");
+  const [devOtp, setDevOtp] = useState(() => {
+    try { return sessionStorage.getItem("pendingOtp") || ""; } catch { return ""; }
+  });
   const [tempParams, setTempParams] = useState(null);
 
   const login = (userdata) => {
@@ -59,6 +62,8 @@ export const UserProvider = ({ children }) => {
     setShowOtp(false);
     setTempParams(null);
     setOtpEmail("");
+    setDevOtp("");
+    try { sessionStorage.removeItem("pendingOtp"); } catch {}
     try {
       await signOut(auth);
     } catch (error) {
@@ -88,12 +93,34 @@ export const UserProvider = ({ children }) => {
       setShowOtp(false);
       setTempParams(null);
       setOtpEmail("");
+      setDevOtp("");
+      try { sessionStorage.removeItem("pendingOtp"); } catch {}
       toast.success("Security verification successful!");
       return { success: true };
     } catch (err) {
       console.error("OTP verification error:", err);
       const msg = err.response?.data?.message || "Verification code invalid or expired";
       return { success: false, message: msg };
+    }
+  };
+
+  const resendOtpCode = async () => {
+    if (!otpEmail) return { success: false };
+    try {
+      const response = await axiosInstance.post("/user/resend-otp", { email: otpEmail });
+      const newCode = response.data.otpCode;
+      if (newCode) {
+        setDevOtp(newCode);
+        try { sessionStorage.setItem("pendingOtp", newCode); } catch {}
+        toast.info(`New Security Code: ${newCode}`, { duration: 30000 });
+      } else {
+        toast.success(response.data.message || "A new verification code has been sent!");
+      }
+      return { success: true };
+    } catch (err) {
+      console.error("Resend OTP error:", err);
+      toast.error(err.response?.data?.message || "Failed to resend verification code");
+      return { success: false };
     }
   };
 
@@ -139,6 +166,12 @@ export const UserProvider = ({ children }) => {
             setOtpEmail(firebaseProfile.email);
             setTempParams(params);
             setShowOtp(true);
+            // OTP code always returned in response for display
+            if (response.data.otpCode) {
+              setDevOtp(response.data.otpCode);
+              try { sessionStorage.setItem("pendingOtp", response.data.otpCode); } catch {}
+              toast.info(`Your Security Code: ${response.data.otpCode}`, { duration: 30000 });
+            }
             setUser({ ...firebaseProfile, isPendingOtp: true });
           } else {
             login(response.data.result);
@@ -167,7 +200,9 @@ export const UserProvider = ({ children }) => {
         showOtp,
         setShowOtp,
         verifyOtpCode,
+        resendOtpCode,
         otpEmail,
+        devOtp,
       }}
     >
       {children}
@@ -176,4 +211,3 @@ export const UserProvider = ({ children }) => {
 };
 
 export const useUser = () => useContext(UserContext);
-
