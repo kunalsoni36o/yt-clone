@@ -1,6 +1,5 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const categories = [
@@ -19,9 +18,12 @@ const categories = [
   "Fashion",
 ];
 
-export default function CategoryTabs() {
-  const [activeCategory, setActiveCategory] = useState("All");
+interface CategoryTabsProps {
+  activeCategory: string;
+  setActiveCategory: (category: string) => void;
+}
 
+export default function CategoryTabs({ activeCategory, setActiveCategory }: CategoryTabsProps) {
   return (
     <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
       {categories.map((category) => (
